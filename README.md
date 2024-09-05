@@ -7,7 +7,8 @@ I am still immature, but I look forward to learning a lot through this class. :f
 
 If there's anything you want to say, feel free to talk to me
 
-Thx for reading. :blush:
-
+```Python
+print('Thx for reading. :blush:')
+```
 
  

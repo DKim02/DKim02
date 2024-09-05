@@ -1,16 +1,13 @@
-## Hi there 👋
+**My Github Profile**
 
-<!--
-**DKim02/DKim02** is a ✨ _special_ ✨ repository because its `README.md` (this file) appears on your GitHub profile.
+Hi there :clap:
 
-Here are some ideas to get you started:
+I am DaeGyeong Kim, Sophomore in the [Dept. of Computer Science and Engineering](https://computer.seoultech.ac.kr/), [SEOULTECH](https://en.seoultech.ac.kr/).
 
-- 🔭 I’m currently working on ...
-- 🌱 I’m currently learning ...
-- 👯 I’m looking to collaborate on ...
-- 🤔 I’m looking for help with ...
-- 💬 Ask me about ...
-- 📫 How to reach me: ...
-- 😄 Pronouns: ...
-- ⚡ Fun fact: ...
--->
+:book: I’m currently learning **Open Source Software(OSS)** in this semester, and this file(or directory) is for my class. 
+I am still immature, but I look forward to learning a lot through this class.. :fire::fire:
+
+If there's anything you want to say, feel free to talk to me
+
+Thx for reading. :blush:
+

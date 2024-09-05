@@ -1,6 +1,6 @@
-**<h2>My Github Profile<h2>**
+**<h2>My Github Profile</h2>**
 
-![header](https://capsulerender.vercel.app/api?type=waving&color=auto&height=200&section=header&text=DaeGyeong%20Kim&fontSize=32)
+!
 
 Hi there :clap: I am DaeGyeong Kim, Sophomore in the [Dept. of Computer Science and Engineering](https://computer.seoultech.ac.kr/), [SEOULTECH](https://en.seoultech.ac.kr/).
 

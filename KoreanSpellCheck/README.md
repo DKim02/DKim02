@@ -71,7 +71,7 @@
 #### 3.2 "input_texts"와 "output_texts"에 형식에 맞게 직접 기입 후 저장
 
 
-		<random_sample.json의 형식>
+		// <random_sample.json의 형식>
 		{
    		 "input_texts": [
    		     "맞춤법을 고쳐주세요: 학우 여러분 남은 기말고사 끝까지 화이팅 해서 유종애미를 거둬주세요 ㅎㅎ"

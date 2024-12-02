@@ -5,8 +5,8 @@
 ## 0. 사용 모습
 <1. KoreanSpellCheck의 파일들을 모두 다운 받는다.>
 
-### 2.
-![Anaconda Prompt를 실행 후 cd를 통해 py코드가 있는 폴더(아마도 HanGeul_Bot)로 이동한다.](./사진모음/11.png)
+### 2.Anaconda Prompt를 실행 후 cd를 통해 py코드가 있는 폴더(아마도 HanGeul_Bot)로 이동한다.
+![](./사진모음/11.png)
 
 
 <3. 오류를 방지하기 위해 가상환경을 설정하고 실행한다. 사진 (5)

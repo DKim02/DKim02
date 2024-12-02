@@ -3,37 +3,41 @@
 * * *
 ![설명 텍스트](./static/images/1.png)
 ## 0. 사용 모습
-<1. KoreanSpellCheck의 파일들을 모두 다운 받는다.>
+#### 1. KoreanSpellCheck의 파일들을 모두 다운 받는다.
 
-### 2.Anaconda Prompt를 실행 후 cd를 통해 py코드가 있는 폴더(아마도 HanGeul_Bot)로 이동한다.
+#### 2.Anaconda Prompt를 실행 후 cd를 통해 py코드가 있는 폴더(아마도 HanGeul_Bot)로 이동한다.
 ![](./사진모음/11.png)
 
 
-<3. 오류를 방지하기 위해 가상환경을 설정하고 실행한다. 사진 (5)
+#### 3. 오류를 방지하기 위해 가상환경을 설정하고 실행한다.
+![](./사진모음/5.png)
 
 
-
-<4. pip install -r requirements.txt을 Anaconda Prompt에 입력 (많아서 시간 좀 걸린다.)(6)
-
-
-
-<5. python app.py을 Anaconda Prompt에 입력하면 (http://127.0.0.1:5000/)을 통해 검사기를 사용할 수 있다.(7)
+#### 4. pip install -r requirements.txt을 Anaconda Prompt에 입력 (많아서 시간 좀 걸린다.)
+![](./사진모음/6.png)
 
 
-
-<6. 사용 모습> (1, 2)
-
-
-
-<7. random_sample.py실행 시 random_sample.json에 생성되는 모습 (8,9)
+#### 5. python app.py을 Anaconda Prompt에 입력하면 (http://127.0.0.1:5000/)을 통해 검사기를 사용할 수 있다.
+![](./사진모음/7.png)
 
 
+#### 6. 사용 모습> (1, 2)
+![](./사진모음/1.png)
+![](./사진모음/2.png)
 
-<8. 모델을 학습 시키는 모습 (10)
+
+#### 7. random_sample.py실행 시 random_sample.json에 생성되는 모습 (8,9)
+![](./사진모음/8.png)
+![](./사진모음/9.png)
 
 
+#### 8. 모델을 학습 시키는 모습 (10)
+![](./사진모음/10.png)
 
-<9. 어색한 문장을 사용자가 직접 학습시키는 모습 (4, 3)
+
+#### 9. 어색한 문장을 사용자가 직접 학습시키는 모습 (4, 3)
+![](./사진모음/4.png)
+![](./사진모음/3.png)
 
 
 * * *

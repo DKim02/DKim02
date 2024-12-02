@@ -1,7 +1,7 @@
 # 맛춤뻡 검사 ㄱ? (Ver. KR)
 
 * * *
-![설명 텍스트](./static/images/1.png)
+
 ## 0. 사용 모습
 #### 1. KoreanSpellCheck의 파일들을 모두 다운 받는다.
 

@@ -26,7 +26,7 @@
 1. 데이터셋 생성
 2. 모델 훈련(및파인튜닝)
 3. 웹 애플리케이션
-[깃허브](https://github.com/DKim02/DKim02/tree/main/KoreanSpellCheck)
+
 파일구조는 [깃허브](https://github.com/DKim02/DKim02/tree/main/KoreanSpellCheck) 를 참고해주시길 바랍니다.
 
 ### 3.1 데이터셋 생성

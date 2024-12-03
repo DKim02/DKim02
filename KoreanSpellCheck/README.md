@@ -57,9 +57,9 @@
 ![](./사진모음/9.png)
 
 
-##### The attention mask and the pad token id were not set.
-##### AS a consequence, you may observe unexpected behavior.
-##### please pass your input's 'attention_mask' to obtain reliable results.
+	The attention mask and the pad token id were not set.
+	AS a consequence, you may observe unexpected behavior.
+	please pass your input's 'attention_mask' to obtain reliable results.
 
 ##### Attention mask와 Pad Token ID를 명시적으로 설정하지 않아 발생하는 오류입니다.
 ##### 하지만, Hugging Face의 transformers 라이브러리에서는 입력에 패딩이 포함되어 있으면 자동으로 이 값을 처리할 수 있습니다.

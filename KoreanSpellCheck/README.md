@@ -24,7 +24,7 @@
 
 * * *
 
-#### 5. python app.py을 Anaconda Prompt에 입력하면 (http://127.0.0.1:5000/)을 통해 검사기를 사용할 수 있습니다.
+#### 5. python app.py을 Anaconda Prompt에 입력하면 (http://127.0.0.1:5000/) 을 통해 검사기를 사용할 수 있습니다.
 ![](./사진모음/7.png)
 
 * * *

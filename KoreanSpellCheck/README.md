@@ -52,9 +52,18 @@
 
 * * *
 
-#### 8. random_sample.py실행 시 random_sample.json에 생성되는 모습 (이상한 말이 많은데 작동에는 영향이 없습니다.)
+#### 8. random_sample.py실행 시 random_sample.json에 생성되는 모습 (경고문이 많이 뜨긴하는데, 작동에는 영향이 없습니다.)
 ![](./사진모음/8.png)
 ![](./사진모음/9.png)
+
+
+##### The attention mask and the pad token id were not set.
+##### AS a consequence, you may observe unexpected behavior.
+##### please pass your input's 'attention_mask' to obtain reliable results.
+
+##### Attention mask와 Pad Token ID를 명시적으로 설정하지 않아 발생하는 오류입니다.
+##### 하지만, Hugging Face의 transformers 라이브러리에서는 입력에 패딩이 포함되어 있으면 자동으로 이 값을 처리할 수 있습니다.
+##### 즉, 경고문이 뜨지만 정상적인 작동을 하고 있습니다.
 
 * * *
 

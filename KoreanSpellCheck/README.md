@@ -9,7 +9,7 @@
 
 * * *
 
-#### 2.Anaconda Prompt를 실행 후 cd를 통해 py코드가 있는 폴더(아마도 HanGeul_Bot)로 이동합다.
+#### 2.Anaconda Prompt를 실행 후 cd를 통해 app.py코드가 있는 폴더(아마도 HanGeul_Bot)로 이동합니다.
 ![](./사진모음/11.png)
 
 * * *
@@ -19,7 +19,7 @@
 
 * * *
 
-#### 4. pip install -r requirements.txt을 Anaconda Prompt에 입력합니다. (많아서 시간 좀 걸린다.)
+#### 4. pip install -r requirements.txt을 Anaconda Prompt에 입력합니다. (많아서 시간 좀 걸립니다.)
 ![](./사진모음/6.png)
 
 * * *

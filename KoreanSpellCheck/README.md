@@ -120,7 +120,7 @@
 #### 2. 모델 훈련(및파인튜닝)
 #### 3. 웹 애플리케이션
 
-파일구조는 [깃허브](https://github.com/DKim02/DKim02/tree/main/KoreanSpellCheck)를 참고해주시길 바랍니다.
+파일구조는 [Github](https://github.com/DKim02/DKim02/tree/main/KoreanSpellCheck)를 참고해주시길 바랍니다.
 
 코드에 대한 자세한 해설은 코드 내부에 있는 주석을 참고해주시길 바랍니다.
 
@@ -293,6 +293,8 @@ index.html: 사용자에게 텍스트 입력란과 교정 결과를 출력하는
 - [Hugging Face KoGPT2](https://huggingface.co/skt/kogpt2-base-v2)
 - [ET5 모델](https://aiopen.etri.re.kr/et5Model)
 - [파인튜닝된 ET5 모델](https://huggingface.co/j5ng/et5-typos-corrector)
+- [국립 국어원 맞춤법 교정 말뭉치](https://kli.korean.go.kr/corpus/main/requestMain.do?lang=ko#none)
+
 
 * * *
 

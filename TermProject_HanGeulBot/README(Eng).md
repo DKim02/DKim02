@@ -138,16 +138,16 @@ Users can directly add parts they wish to improve into the dataset and fine-tune
 #### 3.1 Running the "random_sample.json" File
 #### 3.2 Manually Filling in "input_texts" and "output_texts" According to the Format and Saving
 
-```json
-// <Format of random_sample.json>
-{
-    "input_texts": [
-        "Please correct the spelling: 학우 여러분 남은 기말고사 끝까지 화이팅 해서 유종애미를 거둬주세요 ㅎㅎ"
-    ],
-    "output_texts": [
-        "학우 여러분 남은 기말고사 끝까지 파이팅 해서 유종의 미를 거둬주세요 ㅎㅎ"
-    ]
-}
+    ```json
+    // <Format of random_sample.json>
+    {
+        "input_texts": [
+            "Please correct the spelling: 학우 여러분 남은 기말고사 끝까지 화이팅 해서 유종애미를 거둬주세요 ㅎㅎ"
+        ],
+        "output_texts": [
+            "학우 여러분 남은 기말고사 끝까지 파이팅 해서 유종의 미를 거둬주세요 ㅎㅎ"
+        ]
+    }
 
 
 

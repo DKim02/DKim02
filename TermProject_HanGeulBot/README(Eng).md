@@ -1,4 +1,4 @@
-# Spelling Checker? (Ver. KR)
+# Spelling Checker? (The translation may not be accurate!!)
 
 ![](./사진모음/12.png)
 

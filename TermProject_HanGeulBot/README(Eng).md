@@ -796,13 +796,12 @@ if __name__ == '__main__':
 
 ## index.html File View
 #### index.html
-
 <!DOCTYPE html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Spelling Checker</title>
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Spelling Checker</title>
     <style>
         /* Basic page styling */
         body {

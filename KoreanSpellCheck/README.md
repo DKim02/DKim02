@@ -127,14 +127,13 @@
 
 코드에 대한 자세한 해설은 [9.코드 설명](#코드-설명)을 참고 해주시길 바랍니다.
 
-[random_sample.py](#random_sample.py)
+[random_sample.py 파일 보기](#random_sample.py-파일-보기)
 
-[train_model.py](#train_model.py)
+[train_model.py 파일 보기](#train_model.py-파일-보기)
 
-[app.py](#app.py)
+[app.py 파일 보기](#app.py-파일-보기)
 
-[index.html](#index.html)
-
+[index.html 파일 보기](#indexhtml-파일-보기)
 
 #### 복사과정에서 실수가 있을 수 있으니 이상한 경우 첨부된 코드를 참고해주세요.
 
@@ -355,6 +354,9 @@ index.html: 사용자에게 텍스트 입력란과 교정 결과를 출력하는
 * * *
 
 ## 9. 코드 설명
+
+
+## random_sample.py 파일 보기
 #### random_sample.py
 	import json
 	import random
@@ -578,7 +580,8 @@ index.html: 사용자에게 텍스트 입력란과 교정 결과를 출력하는
 	if __name__ == "__main__":
 	    choose_learning_method()
 	
-	
+
+## train_model.py 파일 보기
 #### train_model.py
 	import torch
 	from transformers import T5ForConditionalGeneration, T5Tokenizer
@@ -693,7 +696,8 @@ index.html: 사용자에게 텍스트 입력란과 교정 결과를 출력하는
 	
 	print("훈련 완료 및 모델 저장 완료")
 	
-	
+
+## app.py 파일 보기
 #### app.py
 	from flask import Flask, render_template, request, jsonify
 	import torch
@@ -823,8 +827,33 @@ index.html: 사용자에게 텍스트 입력란과 교정 결과를 출력하는
 	    app.run(debug=True)
 	
 	
-	
-#### index.html(메모장같은 다른 확장 프로그램으로 켜시면 보실 수 있습니다.)
+## index.html 파일 보기	
+#### index.html
+
+이 섹션에서는 `index.html` 파일의 주요 구조와 기능에 대해 설명합니다. 코드에는 사용자 인터페이스를 구성하는 HTML, 스타일을 정의하는 CSS, 그리고 사용자 인터랙션을 처리하는 JavaScript가 포함되어 있습니다. 코드를 자세히 보려면 메모장 같은 텍스트 편집기나 VSCode, Atom과 같은 코드 에디터로 열어보실 수 있습니다.
+
+#### 주요 구성 요소
+
+1. **헤더 (Header)**
+    - **메타 태그**: 문자 인코딩과 뷰포트 설정을 정의하여 다양한 디바이스에서 올바르게 표시되도록 합니다.
+    - **제목**: 브라우저 탭에 표시될 페이지 제목을 설정합니다.
+    - **스타일**: 내부 CSS를 사용하여 페이지의 레이아웃과 디자인을 정의합니다.
+
+2. **본문 (Body)**
+    - **로고 이미지**: 페이지 상단과 하단에 위치한 로고 이미지를 표시합니다.
+    - **페이지 제목**: "맞춤법 검사기"라는 제목을 중앙에 배치합니다.
+    - **맞춤법 검사 폼**:
+        - **텍스트 입력 영역**: 사용자가 맞춤법을 검사할 텍스트를 입력하는 공간입니다.
+        - **검사기 선택 라디오 버튼**: 다양한 맞춤법 검사기 중에서 선택할 수 있도록 합니다.
+        - **검사하기 버튼**: 입력된 텍스트를 선택한 검사기를 통해 검토합니다.
+    - **결과 표시 영역**: 맞춤법 검사 결과를 사용자에게 보여줍니다.
+    - **다크모드 전환 버튼**: 페이지의 테마를 밝은 모드와 어두운 모드로 전환합니다.
+
+3. **JavaScript**
+    - **다크모드 전환 기능**: 사용자가 버튼을 클릭할 때마다 페이지의 테마를 변경합니다.
+    - **맞춤법 검사 폼 제출 이벤트 핸들러**: 폼이 제출되면 페이지를 새로고침하지 않고 AJAX 요청을 통해 서버에 데이터를 전송하고, 응답 결과를 동적으로 표시합니다.
+  
+      
 	<!DOCTYPE html>
 	<html lang="ko">
 	<head>

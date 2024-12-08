@@ -696,7 +696,7 @@ index.html: 사용자에게 텍스트 입력란과 교정 결과를 출력하는
 	
 	print("훈련 완료 및 모델 저장 완료")
 	
-## index.html 파일 보기	
+	
 ## app.py 파일 보기
 #### app.py
 	from flask import Flask, render_template, request, jsonify

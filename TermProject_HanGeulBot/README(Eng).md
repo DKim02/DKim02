@@ -1,4 +1,4 @@
-# Spelling Checker? (The translation may not be accurate!!)
+# Spelling Checker? (Ver. KR)
 
 ![](./사진모음/12.png)
 
@@ -15,8 +15,6 @@
 - [7. Reference](#7-reference)
 - [8. License](#8-license)
 - [9. Code Explanation](#9-code-explanation)
-
-
 
 ## 0. Usage
 #### 1. Download all files of KoreanSpellCheck.
@@ -57,6 +55,7 @@
 ##### Therefore, the following process is needed to train the dataset for performance improvement. (Fine-tuning process!)
 
 * * *
+
 
 
 
@@ -152,10 +151,6 @@ Users can directly add parts they wish to improve into the dataset and fine-tune
 
 
 
----
-
-### **Part 4: Model Training (and Fine-Tuning), Web Application**
-
 ## 3.2 Model Training (and Fine-Tuning)
 In this project, the ET5 model is used to train the spelling correction model. However, due to time and computer performance limitations, instead of training the ET5 model from scratch, the `et5-typos-corrector` model was used for training. This model is already fine-tuned on a spelling correction-specialized dataset and was used to save time by loading it directly. (Ultimately, the `et5-typos-corrector` was trained on the National Institute of Korean Language's dataset to shorten training time.)
 
@@ -219,6 +214,7 @@ The web application provides quick and intuitive correction results and can hand
 - **JSON**: For saving and loading datasets.
 
 * * *
+
 
 
 
@@ -316,11 +312,7 @@ This project successfully trained a Korean spelling correction model and impleme
 
 
 
-## 9. Code Explanation
 
-## random_sample.py File View
-#### random_sample.py
-```python
 import json
 import random
 from hanspell import spell_checker
@@ -546,9 +538,7 @@ if __name__ == "__main__":
 
 
 
-## train_model.py File View
-#### train_model.py
-```python
+
 import torch
 from transformers import T5ForConditionalGeneration, T5Tokenizer
 from transformers import Trainer, TrainingArguments
@@ -665,9 +655,7 @@ print("Training complete and model saved.")
 
 
 
-## app.py File View
-#### app.py
-```python
+
 from flask import Flask, render_template, request, jsonify
 import torch
 from transformers import T5ForConditionalGeneration, T5Tokenizer
@@ -800,47 +788,9 @@ if __name__ == '__main__':
     app.run(debug=True)
 
 
-
 ## index.html File View
 #### index.html
 
-In this section, we will explain the main structure and functionality of the `index.html` file. The code includes HTML for the user interface, CSS for styling, and JavaScript for handling user interactions. You can view the code using a text editor like Notepad or a code editor like VSCode or Atom.
-
-#### Key Components
-
-1. **Header**
-   
-   **Meta Tags**: Define character encoding and viewport settings to ensure proper display across various devices.
-   
-   **Title**: Sets the page title displayed on the browser tab.
-   
-   **Styles**: Uses internal CSS to define the layout and design of the page.
-
-2. **Body**
-   
-   **Logo Images**: Displays logo images at the top and bottom of the page.
-   
-   **Page Title**: Centers the title "Spelling Checker".
-   
-   **Spelling Checker Form**:
-   
-   **Text Input Area**: A space for users to input text that needs spelling correction.
-   
-   **Checker Selection Radio Buttons**: Allows users to select from different spelling checkers.
-   
-   **Submit Button**: Click to start the spelling check.
-   
-   **Result Display Area**: Shows the results of the spelling check to the user.
-   
-   **Dark Mode Toggle Button**: Switches the page theme between light and dark modes.
-
-3. **JavaScript**
-    
-    **Dark Mode Toggle Functionality**: Changes the page theme when the button is clicked.
-    
-    **Spelling Checker Form Submission Handler**: Handles form submission without refreshing the page, sends an AJAX request to the server, and dynamically displays the results.
-
-```html
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -1120,6 +1070,3 @@ In this section, we will explain the main structure and functionality of the `in
     </script>
 </body>
 </html>
-
-
-

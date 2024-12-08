@@ -126,9 +126,13 @@
 파일구조는 [Github](https://github.com/DKim02/DKim02/tree/main/KoreanSpellCheck)를 참고해주시길 바랍니다.
 
 코드에 대한 자세한 해설은 [9.코드 설명](#코드-설명)을 참고 해주시길 바랍니다.
+
 [random_sample.py](#random_sample.py)
+
 [train_model.py](#train_model.py)
+
 [app.py](#app.py)
+
 [index.html](#index.html)
 
 * * *
@@ -348,754 +352,754 @@ index.html: 사용자에게 텍스트 입력란과 교정 결과를 출력하는
 
 ## 9. 코드 설명
 #### random_sample.py
-import json
-import random
-from hanspell import spell_checker
-import torch
-from transformers import GPT2LMHeadModel, PreTrainedTokenizerFast
-import re
-
-# ------------------------------------------------------------
-# 이 스크립트는 두 가지 방법으로 "입력 텍스트 -> 맞춤법 교정된 출력 텍스트" 쌍을 생성하여
-# 별도의 JSON 파일로 저장하는 역할을 합니다.
-#
-# 1. 국립국어원 제공 JSON 데이터셋 기반:
-#    - 주어진 JSON 파일(MXEC2202210100.json)에서 원문과 교정문 쌍을 가져와 그 중 일부를 랜덤 샘플링합니다.
-#    - 샘플링한 문장을 "맞춤법을 고쳐주세요:"라는 프롬프트 형태의 입력과, 정제된 교정문을 출력으로 지정합니다.
-#
-# 2. 랜덤 생성 문장 기반:
-#    - GPT-2 기반 한국어 언어모델을 로드하여, 사전에 정의된 단어 리스트 중 랜덤한 단어를 골라 해당 단어를 기반으로 문장을 생성합니다.
-#    - 생성된 문장에 hanspell 패키지를 사용하여 맞춤법 교정을 한 후,
-#      "맞춤법을 고쳐주세요:"라는 프롬프트가 포함된 입력과 교정된 문장을 페어로 만듭니다.
-#
-# 두 경우 모두 결과를 JSON 파일(random_sample.json)에 덧붙이는 형태로 저장합니다.
-# ------------------------------------------------------------
-
-# 모델 및 토크나이저 경로
-model_path = "./d0c0df48bf2b2c9350dd855021a5b216f560c0c7"
-tokenizer_path = "./d0c0df48bf2b2c9350dd855021a5b216f560c0c7"
-
-# 데이터셋 관련 파일 경로
-output_file = "./dataset/random_sample.json"  # 생성한 데이터셋을 저장할 파일
-input_file = "./dataset/MXEC2202210100.json" # 국립국어원 JSON 파일 경로
-
-def load_model():
-    """
-    사전 학습된 GPT-2 언어 모델과 토크나이저를 로드하고 GPU 사용 가능 시 GPU로 이동합니다.
-    """
-    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    tokenizer = PreTrainedTokenizerFast.from_pretrained(tokenizer_path)
-    model = GPT2LMHeadModel.from_pretrained(model_path)
-    model.to(device)
-    return model, tokenizer, device
-
-def generate_random_sentence(model, tokenizer, device, input_text):
-    """
-    입력 텍스트(input_text)를 기반으로 모델을 사용하여 문장을 생성합니다.
-    생성 과정:
-    - 최대 길이 50 토큰까지 문장 생성
-    - 반복되는 n-gram 방지
-    - 마침표('.')가 등장하면 그 지점에서 문장을 마칩니다.
-    """
-    input_ids = tokenizer.encode(input_text, return_tensors='pt').to(device)
-    output = model.generate(
-        input_ids,
-        max_length=50,
-        num_return_sequences=1,
-        no_repeat_ngram_size=2,
-        pad_token_id=tokenizer.eos_token_id,
-        eos_token_id=tokenizer.encode('.')[0]
-    )
-    generated_text = tokenizer.decode(output[0], skip_special_tokens=True)
-
-    # 마침표가 등장하면 해당 마침표까지만 문장을 자릅니다.
-    if '.' in generated_text:
-        generated_text = generated_text.split('.')[0] + '.'
-
-    return generated_text
-
-def correct_spelling(input_text):
-    """
-    hanspell을 사용하여 입력 문장에 대한 맞춤법 교정을 수행하고, 교정된 문장을 반환합니다.
-    """
-    corrected = spell_checker.check(input_text)
-    return corrected.checked
-
-def clean_text(text):
-    """
-    텍스트 전처리 함수:
-    - 특정 특수문자 제거 (.,)
-    - &name\d+& 형태로 들어간 이름 태그 제거
-    - 너무 짧은 문장은 빈 문자열로 처리
-    """
-    # 특수문자 제거
-    text = re.sub(r"[.,]", "", text)
-    # &name\d+& 형태 제거
-    text = re.sub(r"\S*&name\d+&\S*", "", text)
-    # 길이가 2 미만이면 빈 문자열 반환
-    if len(text) < 2:
-        return ""
-    return text
-
-def load_existing_data():
-    """
-    기존에 주어진 국립국어원 JSON 파일에서 원본 문장(original_form)과 교정된 문장(corrected_form)을 읽어옵니다.
-    전처리를 통해 불필요한 부분을 제거하고, (원문, 교정문) 쌍을 리스트로 반환합니다.
-    """
-    try:
-        with open(input_file, "r", encoding="utf-8") as f:
-            dataset = json.load(f)
-    except FileNotFoundError:
-        print("파일을 찾을 수 없습니다.")
-        return []
-
-    utterances = []
-    for document in dataset.get('document', []):
-        for utterance in document.get('utterance', []):
-            original_form = utterance.get('original_form', '')
-            corrected_form = utterance.get('corrected_form', '')
-
-            # 전처리 적용
-            original_form = clean_text(original_form)
-            corrected_form = clean_text(corrected_form)
-
-            # 전처리 후 유효한 문장만 리스트에 추가
-            if original_form and corrected_form:
-                utterances.append((original_form, corrected_form))
-
-    return utterances
-
-def get_random_samples(utterances, num_samples=3):
-    """
-    주어진 (원문, 교정문) 쌍 리스트 중에서 num_samples 개수를 랜덤 샘플링합니다.
-    샘플링된 결과를 '맞춤법을 고쳐주세요: 원문' 형태의 input_texts와 교정문 output_texts로 분리하여 반환합니다.
-    """
-    random.seed()  # 랜덤 시드를 고정하지 않아 매 실행마다 결과가 달라집니다.
-    sampled_utterances = random.sample(utterances, num_samples)
-    input_texts = [f"맞춤법을 고쳐주세요: {item[0]}" for item in sampled_utterances]
-    output_texts = [item[1] for item in sampled_utterances]
-    return input_texts, output_texts
-
-def prepare_data_for_training(is_random):
-    """
-    랜덤 단어 기반으로 GPT-2를 통해 문장을 생성하고, hanspell로 맞춤법 교정을 수행합니다.
-    - 사전에 정의된 random_words 리스트에서 단어를 하나 고른 뒤, 이를 기반으로 문장을 생성.
-    - 생성된 문장을 맞춤법 교정 후, '맞춤법을 고쳐주세요: 생성문장' 형태의 입력과 교정문을 페어로 반환.
-    """
-    model, tokenizer, device = load_model()
-
-    input_texts = []
-    output_texts = []
-
-    # 랜덤 문장 생성을 위한 단어 리스트 (사전 정의)
-    random_words = [
-        "사랑", "기후", "운동", "기술", "사회", "음악", "여행", "책", "날씨", "경제",
-        "게임", "교육", "정치", "문화", "영화", "음식", "취미", "직업", "사회적", "기업",
-        "철학", "사회적", "미래", "과학", "예술", "디지털", "로봇", "우주", "행복", "건강",
-        "사회적", "보안", "패션", "자율성", "언어", "소셜", "개발", "탐험", "환경", "가치",
-        "혁신", "인공지능", "정보", "리더십", "책임", "평등", "연대", "공정", "진보", "자유",
-        "도전", "상상", "창의성", "협력", "연구", "테크", "디자인", "커리어", "창업", "복지",
-        "디지털화", "로봇공학", "인터넷", "스마트폰", "기술적", "전략", "친환경", "소셜미디어",
-        "브랜딩", "인테리어", "자율주행", "블록체인", "클라우드", "빅데이터", "AI", "교육과정",
-        "프로그래밍", "데이터", "네트워크", "연구개발", "스타트업", "경제학", "금융", "자산관리",
-        "비즈니스", "트렌드", "스마트시티", "디지털트윈", "모바일", "웨어러블", "카메라", "5G",
-        "IoT", "스마트홈", "헬스케어", "글로벌", "사회적책임", "전자상거래", "디지털화", "e커머스"
-    ]
-
-    # 여기서는 5개의 문장을 생성해봄
-    for i in range(5):
-        # 랜덤 단어 선택
-        random_word = random.choice(random_words)
-
-        # 해당 단어를 시작점으로 문장 생성
-        sentence = generate_random_sentence(model, tokenizer, device, random_word)
-        # 맞춤법 교정
-        corrected_sentence = correct_spelling(sentence)
-
-        # "맞춤법을 고쳐주세요:" 라는 프롬프트 형태의 입력-출력 쌍 저장
-        input_texts.append(f"맞춤법을 고쳐주세요: {sentence}")
-        output_texts.append(corrected_sentence)
-
-    return input_texts, output_texts
-
-def append_to_json(input_texts, output_texts):
-    """
-    생성된 input_texts, output_texts 데이터를 기존 JSON 파일에 덧붙여 저장합니다.
-    - 기존 random_sample.json 파일을 읽어 input_texts, output_texts를 확장한 뒤 다시 저장합니다.
-    - 파일이 없을 경우 새로운 구조의 JSON을 생성합니다.
-    """
-    try:
-        with open(output_file, "r", encoding="utf-8") as f:
-            existing_data = json.load(f)
-    except FileNotFoundError:
-        # 파일이 없으면 새로운 구조로 초기화
-        existing_data = {"input_texts": [], "output_texts": []}
-
-    # 새로운 데이터를 기존 데이터에 추가
-    existing_data["input_texts"].extend(input_texts)
-    existing_data["output_texts"].extend(output_texts)
-
-    # 덧붙인 데이터를 다시 JSON 파일로 저장
-    with open(output_file, "w", encoding="utf-8") as f:
-        json.dump(existing_data, f, ensure_ascii=False, indent=4)
-
-    print(f"랜덤 샘플링된 데이터가 {output_file}에 덧붙여졌습니다.")
-
-def choose_learning_method():
-    """
-    사용자에게 데이터셋 생성 방식을 선택하게 한 뒤,
-    선택된 방식에 따라 데이터 생성 로직을 실행합니다.
-    1. 국립국어원 JSON 데이터 기반
-    2. 랜덤 문장 생성 기반
-    """
-    print("데이터셋 생성 방법을 선택하세요:")
-    print("1. 국립국어원 JSON 파일 기반으로 생성")
-    print("2. 랜덤으로 문장 생성")
-
-    choice = input("번호를 선택하세요: ")
-
-    if choice == "1":
-        # 기존 국립국어원 JSON 파일에서 (원문, 교정문) 쌍을 랜덤 추출
-        print("기존 JSON 파일을 학습합니다.")
-        utterances = load_existing_data()
-        input_texts, output_texts = get_random_samples(utterances, num_samples=10)
-        append_to_json(input_texts, output_texts)
-    elif choice == "2":
-        # GPT-2를 사용해 랜덤한 문장을 만들고, 맞춤법 교정한 뒤 JSON 파일에 저장
-        print("랜덤 문장을 학습합니다.")
-        input_texts, output_texts = prepare_data_for_training(is_random=True)
-        append_to_json(input_texts, output_texts)
-
-# 메인 실행부
-if __name__ == "__main__":
-    choose_learning_method()
-
-
-#### train_model.py
-import torch
-from transformers import T5ForConditionalGeneration, T5Tokenizer
-from transformers import Trainer, TrainingArguments
-import json
-from sklearn.model_selection import train_test_split
-
-# ------------------------------------------------------------
-# 이 스크립트는 T5 모델을 활용하여 맞춤법 교정 모델을 파인튜닝하는 과정의 예시를 보여줍니다.
-#
-# 주요 흐름:
-# 1. 사전 학습된 T5 맞춤법 교정 모델과 토크나이저 로드
-# 2. 미리 준비된 JSON 데이터에서 "input_texts"와 "output_texts"를 불러옴
-# 3. 데이터 전처리 후 훈련/검증 데이터로 분할
-# 4. 토크나이저를 사용하여 텍스트를 인덱싱
-# 5. PyTorch Dataset 형태로 변환
-# 6. Trainer를 활용하여 파인튜닝 수행
-# 7. 파인튜닝 완료 후 모델과 토크나이저 저장
-#
-# 주석을 통해 각 단계별로 역할을 명확히 설명하였습니다.
-# ------------------------------------------------------------
-
-# T5 모델 및 토크나이저 로드
-# "j5ng/et5-typos-corrector" 모델은 미리 한글 맞춤법 교정에 최적화된 T5 계열 모델
-model = T5ForConditionalGeneration.from_pretrained("j5ng/et5-typos-corrector")
-tokenizer = T5Tokenizer.from_pretrained("j5ng/et5-typos-corrector")
-
-# JSON 데이터 파일 로드
-# 이 파일에는 {"input_texts": [...], "output_texts": [...]} 구조로 데이터가 저장되어 있음
-input_file = "./dataset/random_sample.json"
-with open(input_file, "r", encoding="utf-8") as f:
-    data = json.load(f)
-
-# "input_texts"와 "output_texts" 분리
-input_texts = data["input_texts"]
-output_texts = data["output_texts"]
-
-# 훈련 세트와 검증 세트로 분할
-# test_size=0.2는 20% 데이터를 검증용으로 사용
-train_df, val_df = train_test_split(list(zip(input_texts, output_texts)), test_size=0.2, random_state=42)
-
-# T5 모델 훈련에 맞추어 입력 문장 전처리
-# "맞춤법을 고쳐주세요: " 문구를 앞에 붙여, 모델이 교정 작업을 해야 함을 명시
-# 출력 문장 끝에 "."를 붙여 마침표로 문장 종결 형식 유지 (선택 사항)
-train_input = ["맞춤법을 고쳐주세요: " + item[0] for item in train_df]
-train_output = [item[1] + "." for item in train_df]
-
-val_input = ["맞춤법을 고쳐주세요: " + item[0] for item in val_df]
-val_output = [item[1] + "." for item in val_df]
-
-# 토크나이징:
-# max_length=128: 문장 최대 길이를 128 토큰으로 제한
-# padding=True, truncation=True: 필요한 경우 패딩 및 잘라내기
-train_encodings = tokenizer(train_input, max_length=128, padding=True, truncation=True)
-train_labels_encodings = tokenizer(train_output, max_length=128, padding=True, truncation=True)
-
-val_encodings = tokenizer(val_input, max_length=128, padding=True, truncation=True)
-val_labels_encodings = tokenizer(val_output, max_length=128, padding=True, truncation=True)
-
-# PyTorch Dataset 클래스 정의
-# 모델 학습에 필요한 형태로 데이터를 만들어줌
-class SpellCorrectionDataset(torch.utils.data.Dataset):
-    def __init__(self, encodings, labels_encodings):
-        self.encodings = encodings
-        self.labels_encodings = labels_encodings
-
-    def __getitem__(self, idx):
-        # encodings에서 인덱스 idx의 토큰 텐서들을 가져옴
-        item = {key: torch.tensor(val[idx]) for key, val in self.encodings.items()}
-        # labels는 labels_encodings의 input_ids를 사용
-        item["labels"] = torch.tensor(self.labels_encodings["input_ids"][idx])
-        return item
-
-    def __len__(self):
-        return len(self.encodings["input_ids"])
-
-# 훈련/검증용 Dataset 생성
-train_dataset = SpellCorrectionDataset(train_encodings, train_labels_encodings)
-val_dataset = SpellCorrectionDataset(val_encodings, val_labels_encodings)
-
-# TrainingArguments 설정
-# 모델 출력 경로, 학습률, 배치 사이즈, 에폭 수, weight decay 등 설정
-training_args = TrainingArguments(
-    output_dir="./outputs",
-    evaluation_strategy="epoch",   # 매 epoch마다 검증
-    learning_rate=1e-4,
-    per_device_train_batch_size=32,
-    num_train_epochs=8,
-    weight_decay=0.01,
-    save_strategy="epoch",         # 매 epoch마다 체크포인트 저장
-    metric_for_best_model="eval_loss", 
-    greater_is_better=False        # eval_loss는 작을수록 좋음
-)
-
-# Trainer 초기화
-trainer = Trainer(
-    model=model,
-    args=training_args,
-    train_dataset=train_dataset,
-    eval_dataset=val_dataset,
-)
-
-# 모델 파인튜닝 시작
-trainer.train()
-
-# 파인튜닝 완료 후 모델과 토크나이저 저장
-model.save_pretrained("./fine_tuned_model", safe_serialization=False)
-tokenizer.save_pretrained("./fine_tuned_model")
-
-# PyTorch 형식으로 모델 가중치 저장
-torch.save(model.state_dict(), './fine_tuned_model/pytorch_model.bin')
-
-print("훈련 완료 및 모델 저장 완료")
-
-
-#### app.py
-from flask import Flask, render_template, request, jsonify
-import torch
-from transformers import T5ForConditionalGeneration, T5Tokenizer
-from hanspell import spell_checker  # Hanspell 사용
-
-# ------------------------------------------------------------
-# 이 Flask 애플리케이션은 다음 세 가지 맞춤법 검사 방식을 제공합니다:
-# 1. 파인튜닝되지 않은 기본 모델(untuned_model)을 사용한 맞춤법 교정
-# 2. 파인튜닝된 모델(fine_tuned_model)을 사용한 맞춤법 교정
-# 3. Hanspell 패키지를 이용한 맞춤법 교정
-#
-# 사용자는 웹 인터페이스(index.html)에서 텍스트를 입력하고, 
-# 원하는 검사기(untuned, tuned, hanspell)를 선택하여 맞춤법 교정을 요청할 수 있습니다.
-#
-# 주요 로직:
-# - '/' 라우트: index.html 렌더링(메인 페이지)
-# - '/check' 라우트: POST 방식으로 텍스트 및 검사기 타입을 받아 맞춤법 검사 결과 반환
-#
-# 이 코드는 Flask 앱을 실행시킨 뒤, localhost:5000 (또는 지정한 포트)에서 
-# 웹페이지에 접속해 텍스트를 입력하고 검사 결과를 확인할 수 있습니다.
-# ------------------------------------------------------------
-
-app = Flask(__name__)
-
-# 파인튜닝된 모델 및 토크나이저 로드 경로
-model_path = './fine_tuned_model'
-tokenizer_path = './fine_tuned_model'
-
-# 파인튜닝되지 않은 모델 로드
-# "j5ng/et5-typos-corrector"는 기본 한글 맞춤법 교정 T5 모델
-untuned_model = T5ForConditionalGeneration.from_pretrained("j5ng/et5-typos-corrector")
-untuned_tokenizer = T5Tokenizer.from_pretrained("j5ng/et5-typos-corrector")
-
-# 파인튜닝된 모델 로드
-fine_tuned_model = T5ForConditionalGeneration.from_pretrained(model_path)
-fine_tuned_tokenizer = T5Tokenizer.from_pretrained(tokenizer_path)
-
-# GPU 사용 가능 여부 확인하여 모델 디바이스 설정
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-untuned_model.to(device)
-fine_tuned_model.to(device)
-
-@app.route('/')
-def index():
-    """
-    메인 페이지 렌더링: index.html 반환
-    사용자가 웹 UI를 통해 텍스트를 입력하고, 검사 방식을 선택할 수 있는 인터페이스 제공
-    """
-    return render_template('index.html')
-
-@app.route('/check', methods=['POST'])
-def check_spelling():
-    """
-    맞춤법 검사 요청을 처리하는 엔드포인트.
-    사용자가 입력한 텍스트와 선택한 검사기 타입을 받아, 해당 방식으로 맞춤법 교정 후 결과를 JSON 형태로 반환.
-    """
-    text = request.form.get('text')  # 사용자가 입력한 텍스트
-    checker_type = request.form.get('checker')  # 선택된 검사기 유형 (untuned, tuned, hanspell)
-
-    if not text:
-        return jsonify({'error': '텍스트를 입력해주세요.'})
-
-    # 선택된 검사 방식에 따라 처리
-    if checker_type == 'model_untuned':
-        # 파인튜닝되지 않은 모델로 맞춤법 교정
-        input_encoding = untuned_tokenizer("맞춤법을 고쳐주세요: " + text, return_tensors="pt").to(device)
-        input_ids = input_encoding.input_ids
-        attention_mask = input_encoding.attention_mask
-
-        # T5 모델을 사용해 결과 생성
-        output_encoding = untuned_model.generate(
-            input_ids=input_ids,
-            attention_mask=attention_mask,
-            max_length=128,
-            num_beams=5,
-            early_stopping=True,
-        )
-        output_text = untuned_tokenizer.decode(output_encoding[0], skip_special_tokens=True)
-
-        return jsonify({
-            'original_text': text,
-            'checked_text': output_text
-        })
-
-    elif checker_type == 'model_tuned':
-        # 파인튜닝된 모델로 맞춤법 교정
-        input_encoding = fine_tuned_tokenizer("맞춤법을 고쳐주세요: " + text, return_tensors="pt").to(device)
-        input_ids = input_encoding.input_ids
-        attention_mask = input_encoding.attention_mask
-
-        # 파인튜닝된 모델을 사용한 결과 생성
-        output_encoding = fine_tuned_model.generate(
-            input_ids=input_ids,
-            attention_mask=attention_mask,
-            max_length=128,
-            num_beams=5,
-            early_stopping=True,
-        )
-        output_text = fine_tuned_tokenizer.decode(output_encoding[0], skip_special_tokens=True)
-
-        return jsonify({
-            'original_text': text,
-            'checked_text': output_text
-        })
-
-    elif checker_type == 'hanspell':
-        # Hanspell 라이브러리를 사용한 맞춤법 교정
-        try:
-            corrected_text = spell_checker.check(text).checked
-            return jsonify({
-                'original_text': text,
-                'checked_text': corrected_text
-            })
-        except Exception as e:
-            return jsonify({
-                'error': f'Hanspell 처리 중 오류 발생: {str(e)}'
-            })
-
-    else:
-        # 지원하지 않는 검사기 타입일 경우 에러 반환
-        return jsonify({'error': '잘못된 검사기 선택입니다.'})
-
-if __name__ == '__main__':
-    # 개발용 서버 실행 (디버그 모드)
-    # 실제 배포 시에는 WSGI 서버를 사용하여 실행 권장 (아쉽게도 이부분은 비용문제로 진행하지 못함)
-    app.run(debug=True)
-
-
-
-#### index.html(메모장같은 다른 확장 프로그램으로 켜시면 보실 수 있습니다.)
-<!DOCTYPE html>
-<html lang="ko">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>맞춤법 검사기</title>
-    <style>
-        /* 기본 페이지 스타일 설정 */
-        body {
-            font-family: Arial, sans-serif; /* 기본 글꼴 설정 */
-            display: flex; /* 플렉스 박스 레이아웃 사용 */
-            justify-content: center; /* 수평 중앙 정렬 */
-            align-items: center; /* 수직 중앙 정렬 */
-            height: 100vh; /* 뷰포트 전체 높이 사용 */
-            margin: 0; /* 기본 마진 제거 */
-            background-color: #f4f4f4; /* 배경 색상 설정 */
-            transition: background-color 0.3s ease, color 0.3s ease; /* 배경 및 텍스트 색상 전환 애니메이션 */
-            background-image: url('your-image-path.jpg'); /* 배경 이미지 경로 설정 */
-            background-size: cover; /* 배경 이미지 크기를 화면에 맞게 조정 */
-            background-position: center; /* 배경 이미지 중앙 정렬 */
-            flex-direction: column; /* 플렉스 아이템을 수직으로 배치 */
-        }
-
-        /* 중앙 컨테이너 스타일 */
-        .container {
-            text-align: center; /* 텍스트 중앙 정렬 */
-            background-color: rgba(255, 255, 255, 0.8); /* 반투명한 흰색 배경 */
-            padding: 30px; /* 내부 여백 */
-            border-radius: 10px; /* 둥근 모서리 */
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1); /* 그림자 효과로 입체감 부여 */
-            width: 100%; /* 너비 100% */
-            max-width: 500px; /* 최대 너비 500px로 제한 */
-            position: relative; /* 상대 위치 지정 */
-            transition: background-color 0.3s ease, box-shadow 0.3s ease; /* 배경과 그림자 변경 애니메이션 */
-        }
-
-        /* 텍스트 입력 영역 스타일 */
-        textarea {
-            width: 100%; /* 너비 100%로 설정 */
-            height: 100px; /* 높이 100px로 설정 */
-            padding: 10px; /* 내부 여백 */
-            margin-bottom: 20px; /* 아래 여백 */
-            border-radius: 5px; /* 둥근 모서리 */
-            border: 1px solid #ccc; /* 회색 테두리 */
-            font-size: 16px; /* 글자 크기 설정 */
-            transition: border-color 0.3s ease; /* 테두리 색상 전환 애니메이션 */
-        }
-
-        /* 제출 버튼 스타일 */
-        button {
-            padding: 10px 20px; /* 내부 여백 */
-            background-color: #4CAF50; /* 녹색 배경 */
-            color: white; /* 흰색 텍스트 */
-            border: none; /* 테두리 제거 */
-            border-radius: 5px; /* 둥근 모서리 */
-            cursor: pointer; /* 마우스 포인터 변경 */
-            font-size: 16px; /* 글자 크기 설정 */
-            transition: background-color 0.3s ease; /* 배경 색상 전환 애니메이션 */
-        }
-
-        /* 버튼에 마우스를 올렸을 때 색상 변경 */
-        button:hover {
-            background-color: #45a049; /* 조금 더 진한 녹색으로 변경 */
-        }
-
-        /* 맞춤법 검사 결과 영역 스타일 */
-        .result {
-            margin-top: 20px; /* 위 여백 */
-            text-align: center; /* 텍스트 중앙 정렬 */
-            background-color: #e8f5e9; /* 연한 녹색 배경 */
-            padding: 15px; /* 내부 여백 */
-            border-radius: 5px; /* 둥근 모서리 */
-            border: 1px solid #4CAF50; /* 녹색 테두리 */
-            white-space: pre-wrap; /* 공백과 줄바꿈 유지 */
-            word-wrap: break-word; /* 긴 단어 자동 줄바꿈 */
-            display: none; /* 초기에는 숨김 상태 */
-            transition: background-color 0.3s ease, color 0.3s ease; /* 배경 및 텍스트 색상 전환 애니메이션 */
-        }
-
-        /* 결과 영역 내부의 각 텍스트 블록 스타일 */
-        .result div {
-            margin-bottom: 10px; /* 아래 여백 */
-            font-size: 18px; /* 글자 크기 설정 */
-            text-align: center; /* 텍스트 중앙 정렬 */
-        }
-
-        /* 다크 모드 활성화 시 스타일 */
-        body.dark-mode {
-            background-color: #121212; /* 어두운 배경 색상 */
-            color: white; /* 흰색 텍스트 */
-        }
-
-        .container.dark-mode {
-            background-color: #333; /* 어두운 배경 색상 */
-            box-shadow: 0 4px 8px rgba(255, 255, 255, 0.1); /* 어두운 그림자 색상 */
-        }
-
-        textarea.dark-mode {
-            background-color: #555; /* 어두운 텍스트 입력 배경 */
-            border: 1px solid #777; /* 어두운 테두리 색상 */
-            color: white; /* 흰색 텍스트 */
-        }
-
-        button.dark-mode {
-            background-color: #333; /* 어두운 버튼 배경 */
-        }
-
-        .result.dark-mode {
-            background-color: #444; /* 어두운 결과 배경 */
-            color: white; /* 흰색 텍스트 */
-            border: 1px solid #777; /* 어두운 테두리 색상 */
-        }
-
-        /* 다크모드 전환 버튼 스타일 */
-        #toggle-theme {
-            position: fixed; /* 화면 고정 위치 */
-            bottom: 20px; /* 화면 하단에서 20px 위 */
-            left: 50%; /* 수평 중앙 정렬 */
-            transform: translateX(-50%); /* 정확한 중앙으로 이동 */
-            padding: 10px 20px; /* 내부 여백 */
-            background-color: #4CAF50; /* 녹색 배경 */
-            color: white; /* 흰색 텍스트 */
-            border: none; /* 테두리 제거 */
-            border-radius: 5px; /* 둥근 모서리 */
-            cursor: pointer; /* 마우스 포인터 변경 */
-            font-size: 16px; /* 글자 크기 설정 */
-            transition: background-color 0.3s ease; /* 배경 색상 전환 애니메이션 */
-        }
-
-        /* 다크모드 전환 버튼에 마우스를 올렸을 때 색상 변경 */
-        #toggle-theme:hover {
-            background-color: #45a049; /* 조금 더 진한 녹색으로 변경 */
-        }
-
-        /* 로고 이미지 크기 조정 */
-        #logo1, #logo2 {
-            width: 300px; /* 너비 300px로 설정 */
-            height: auto; /* 높이는 자동으로 조정 */
-            margin-bottom: 20px; /* 아래 여백 */
-        }
-
-        /* 라디오 버튼 숨기기 */
-        input[type="radio"] {
-            display: none; /* 기본 라디오 버튼 숨김 */
-        }
-
-        /* 선택된 라디오 버튼을 대체하는 아이콘 스타일 */
-        input[type="radio"]:checked + label::before {
-            content: "🤖"; /* 로봇 아이콘 표시 */
-            display: inline-block; /* 인라인 블록으로 표시 */
-            width: 30px; /* 너비 30px */
-            height: 30px; /* 높이 30px */
-            font-size: 30px; /* 아이콘 크기 설정 */
-            margin-right: 10px; /* 오른쪽 여백 */
-            cursor: pointer; /* 마우스 포인터 변경 */
-        }
-
-        /* 선택되지 않은 라디오 버튼을 대체하는 아이콘 스타일 */
-        input[type="radio"]:not(:checked) + label::before {
-            content: "⚙️"; /* 톱니바퀴 아이콘 표시 */
-            display: inline-block; /* 인라인 블록으로 표시 */
-            width: 30px; /* 너비 30px */
-            height: 30px; /* 높이 30px */
-            font-size: 30px; /* 아이콘 크기 설정 */
-            margin-right: 10px; /* 오른쪽 여백 */
-            cursor: pointer; /* 마우스 포인터 변경 */
-        }
-
-        /* 라벨 텍스트 스타일 */
-        label {
-            display: inline-block; /* 인라인 블록으로 표시 */
-            margin: 5px; /* 마진 설정 */
-            font-size: 18px; /* 글자 크기 설정 */
-        }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <!-- 상단 로고 이미지 -->
-        <img id="logo1" src="{{ url_for('static', filename='logo.png') }}" alt="Logo1"><br>
-        
-        <!-- 페이지 제목 -->
-        <h1>맞춤법 검사기</h1>
-        
-        <!-- 맞춤법 검사 폼 -->
-        <form id="spellcheck-form" action="/check" method="post">
-            <!-- 텍스트 입력 영역 -->
-            <textarea id="text-input" name="text" placeholder="텍스트를 입력하세요"></textarea><br>
-            
-            <!-- 검사기 선택 라디오 버튼 -->
-            <label>검사기 선택:</label><br>
-            <!-- Hanspell 검사기 선택 라디오 버튼 -->
-            <input type="radio" id="hanspell" name="checker" value="hanspell" checked>
-            <label for="hanspell">Hanspell</label><br>
-            <!-- 파인튜닝되지 않은 모델 기반 검사기 선택 라디오 버튼 -->
-            <input type="radio" id="model_untuned" name="checker" value="model_untuned">
-            <label for="model_untuned">모델 기반 맞춤법 검사기 (튜닝 안된 모델)</label><br>
-            <!-- 파인튜닝된 모델 기반 검사기 선택 라디오 버튼 -->
-            <input type="radio" id="model_tuned" name="checker" value="model_tuned">
-            <label for="model_tuned">모델 기반 맞춤법 검사기 (파인튜닝된 모델)</label><br>
-            
-            <!-- 검사 시작 버튼 -->
-            <button type="submit">검사하기</button>
-        </form>
-        
-        <!-- 맞춤법 검사 결과 표시 영역 -->
-        <div id="result" class="result">
-            <div id="original-text"></div> <!-- 원본 텍스트 표시 -->
-            <div id="checked-text"></div> <!-- 수정된 텍스트 표시 -->
-        </div> <!-- 결과 영역 종료 -->
-        
-        <!-- 하단 로고 이미지 -->
-        <img id="logo2" src="{{ url_for('static', filename='logo2.png') }}" alt="Logo2"><br>
-    </div>
-    
-    <!-- 다크모드 전환 버튼 -->
-    <button id="toggle-theme">다크모드 전환</button>
-    
-    <script>
-        // JavaScript 코드 섹션
-
-        // 폼 및 결과 요소 선택
-        const form = document.getElementById('spellcheck-form'); // 맞춤법 검사 폼
-        const resultDiv = document.getElementById('result'); // 결과 표시 영역
-        const originalTextDiv = document.getElementById('original-text'); // 원본 텍스트 표시 div
-        const checkedTextDiv = document.getElementById('checked-text'); // 수정된 텍스트 표시 div
-        const textInput = document.getElementById('text-input'); // 텍스트 입력 영역
-        const toggleThemeButton = document.getElementById('toggle-theme'); // 다크모드 전환 버튼
-
-        // 다크모드 전환 기능
-        toggleThemeButton.addEventListener('click', function() {
-            // 페이지 전체에 'dark-mode' 클래스 토글
-            document.body.classList.toggle('dark-mode');
-            // 컨테이너에도 'dark-mode' 클래스 토글
-            document.querySelector('.container').classList.toggle('dark-mode');
-            // 텍스트 입력 영역에도 'dark-mode' 클래스 토글
-            textInput.classList.toggle('dark-mode');
-            // 모든 버튼에도 'dark-mode' 클래스 토글
-            document.querySelectorAll('button').forEach(function(btn) {
-                btn.classList.toggle('dark-mode');
-            });
-            // 결과 표시 영역에도 'dark-mode' 클래스 토글
-            resultDiv.classList.toggle('dark-mode');
-        });
-
-        // 맞춤법 검사 폼 제출 이벤트 핸들러
-        form.addEventListener('submit', function(event) {
-            event.preventDefault(); // 폼의 기본 제출 동작(페이지 새로고침) 방지
-
-            // 폼 데이터를 FormData 객체로 수집
-            const formData = new FormData(form);
-            const checkerType = formData.get('checker'); // 선택된 검사기 유형 가져오기
-
-            // 서버로 POST 요청 보내기
-            fetch('/check', { // 서버의 '/check' 엔드포인트로 요청
-                method: 'POST', // HTTP 메서드 POST 사용
-                body: formData // 폼 데이터 전송
-            })
-            .then(response => response.json()) // 응답을 JSON으로 파싱
-            .then(data => {
-                if (data.error) {
-                    // 서버에서 에러 메시지를 반환한 경우
-                    resultDiv.innerHTML = `<div>${data.error}</div>`; // 에러 메시지 표시
-                } else {
-                    // 성공적으로 맞춤법 검사를 완료한 경우
-                    originalTextDiv.textContent = "원본 문장: " + data.original_text; // 원본 텍스트 표시
-                    checkedTextDiv.textContent = "수정된 문장: " + data.checked_text; // 수정된 텍스트 표시
-                    resultDiv.style.display = 'block'; // 결과 영역 보이기
-                }
-            })
-            .catch(error => {
-                // 네트워크 오류나 기타 예외가 발생한 경우
-                resultDiv.innerHTML = "<div>에러가 발생했습니다. 다시 시도해주세요.</div>"; // 에러 메시지 표시
-                resultDiv.style.display = 'block'; // 결과 영역 보이기
-            });
-        });
-    </script>
-</body>
-</html>
+	import json
+	import random
+	from hanspell import spell_checker
+	import torch
+	from transformers import GPT2LMHeadModel, PreTrainedTokenizerFast
+	import re
+	
+	# ------------------------------------------------------------
+	# 이 스크립트는 두 가지 방법으로 "입력 텍스트 -> 맞춤법 교정된 출력 텍스트" 쌍을 생성하여
+	# 별도의 JSON 파일로 저장하는 역할을 합니다.
+	#
+	# 1. 국립국어원 제공 JSON 데이터셋 기반:
+	#    - 주어진 JSON 파일(MXEC2202210100.json)에서 원문과 교정문 쌍을 가져와 그 중 일부를 랜덤 샘플링합니다.
+	#    - 샘플링한 문장을 "맞춤법을 고쳐주세요:"라는 프롬프트 형태의 입력과, 정제된 교정문을 출력으로 지정합니다.
+	#
+	# 2. 랜덤 생성 문장 기반:
+	#    - GPT-2 기반 한국어 언어모델을 로드하여, 사전에 정의된 단어 리스트 중 랜덤한 단어를 골라 해당 단어를 기반으로 문장을 생성합니다.
+	#    - 생성된 문장에 hanspell 패키지를 사용하여 맞춤법 교정을 한 후,
+	#      "맞춤법을 고쳐주세요:"라는 프롬프트가 포함된 입력과 교정된 문장을 페어로 만듭니다.
+	#
+	# 두 경우 모두 결과를 JSON 파일(random_sample.json)에 덧붙이는 형태로 저장합니다.
+	# ------------------------------------------------------------
+	
+	# 모델 및 토크나이저 경로
+	model_path = "./d0c0df48bf2b2c9350dd855021a5b216f560c0c7"
+	tokenizer_path = "./d0c0df48bf2b2c9350dd855021a5b216f560c0c7"
+	
+	# 데이터셋 관련 파일 경로
+	output_file = "./dataset/random_sample.json"  # 생성한 데이터셋을 저장할 파일
+	input_file = "./dataset/MXEC2202210100.json" # 국립국어원 JSON 파일 경로
+	
+	def load_model():
+	    """
+	    사전 학습된 GPT-2 언어 모델과 토크나이저를 로드하고 GPU 사용 가능 시 GPU로 이동합니다.
+	    """
+	    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+	    tokenizer = PreTrainedTokenizerFast.from_pretrained(tokenizer_path)
+	    model = GPT2LMHeadModel.from_pretrained(model_path)
+	    model.to(device)
+	    return model, tokenizer, device
+
+	def generate_random_sentence(model, tokenizer, device, input_text):
+	    """
+	    입력 텍스트(input_text)를 기반으로 모델을 사용하여 문장을 생성합니다.
+	    생성 과정:
+	    - 최대 길이 50 토큰까지 문장 생성
+	    - 반복되는 n-gram 방지
+	    - 마침표('.')가 등장하면 그 지점에서 문장을 마칩니다.
+	    """
+	    input_ids = tokenizer.encode(input_text, return_tensors='pt').to(device)
+	    output = model.generate(
+	        input_ids,
+	        max_length=50,
+	        num_return_sequences=1,
+	        no_repeat_ngram_size=2,
+	        pad_token_id=tokenizer.eos_token_id,
+	        eos_token_id=tokenizer.encode('.')[0]
+	    )
+	    generated_text = tokenizer.decode(output[0], skip_special_tokens=True)
+	
+	    # 마침표가 등장하면 해당 마침표까지만 문장을 자릅니다.
+	    if '.' in generated_text:
+	        generated_text = generated_text.split('.')[0] + '.'
+	
+	    return generated_text
+	
+	def correct_spelling(input_text):
+	    """
+	    hanspell을 사용하여 입력 문장에 대한 맞춤법 교정을 수행하고, 교정된 문장을 반환합니다.
+	    """
+	    corrected = spell_checker.check(input_text)
+	    return corrected.checked
+	
+	def clean_text(text):
+	    """
+	    텍스트 전처리 함수:
+	    - 특정 특수문자 제거 (.,)
+	    - &name\d+& 형태로 들어간 이름 태그 제거
+	    - 너무 짧은 문장은 빈 문자열로 처리
+	    """
+	    # 특수문자 제거
+	    text = re.sub(r"[.,]", "", text)
+	    # &name\d+& 형태 제거
+	    text = re.sub(r"\S*&name\d+&\S*", "", text)
+	    # 길이가 2 미만이면 빈 문자열 반환
+	    if len(text) < 2:
+	        return ""
+	    return text
+	
+	def load_existing_data():
+	    """
+	    기존에 주어진 국립국어원 JSON 파일에서 원본 문장(original_form)과 교정된 문장(corrected_form)을 읽어옵니다.
+	    전처리를 통해 불필요한 부분을 제거하고, (원문, 교정문) 쌍을 리스트로 반환합니다.
+	    """
+	    try:
+	        with open(input_file, "r", encoding="utf-8") as f:
+	            dataset = json.load(f)
+	    except FileNotFoundError:
+	        print("파일을 찾을 수 없습니다.")
+	        return []
+	
+	    utterances = []
+	    for document in dataset.get('document', []):
+	        for utterance in document.get('utterance', []):
+	            original_form = utterance.get('original_form', '')
+	            corrected_form = utterance.get('corrected_form', '')
+	
+	            # 전처리 적용
+	            original_form = clean_text(original_form)
+	            corrected_form = clean_text(corrected_form)
+	
+	            # 전처리 후 유효한 문장만 리스트에 추가
+	            if original_form and corrected_form:
+	                utterances.append((original_form, corrected_form))
+	
+	    return utterances
+	
+	def get_random_samples(utterances, num_samples=3):
+	    """
+	    주어진 (원문, 교정문) 쌍 리스트 중에서 num_samples 개수를 랜덤 샘플링합니다.
+	    샘플링된 결과를 '맞춤법을 고쳐주세요: 원문' 형태의 input_texts와 교정문 output_texts로 분리하여 반환합니다.
+	    """
+	    random.seed()  # 랜덤 시드를 고정하지 않아 매 실행마다 결과가 달라집니다.
+	    sampled_utterances = random.sample(utterances, num_samples)
+	    input_texts = [f"맞춤법을 고쳐주세요: {item[0]}" for item in sampled_utterances]
+	    output_texts = [item[1] for item in sampled_utterances]
+	    return input_texts, output_texts
+	
+	def prepare_data_for_training(is_random):
+	    """
+	    랜덤 단어 기반으로 GPT-2를 통해 문장을 생성하고, hanspell로 맞춤법 교정을 수행합니다.
+	    - 사전에 정의된 random_words 리스트에서 단어를 하나 고른 뒤, 이를 기반으로 문장을 생성.
+	    - 생성된 문장을 맞춤법 교정 후, '맞춤법을 고쳐주세요: 생성문장' 형태의 입력과 교정문을 페어로 반환.
+	    """
+	    model, tokenizer, device = load_model()
+	
+	    input_texts = []
+	    output_texts = []
+	
+	    # 랜덤 문장 생성을 위한 단어 리스트 (사전 정의)
+	    random_words = [
+	        "사랑", "기후", "운동", "기술", "사회", "음악", "여행", "책", "날씨", "경제",
+	        "게임", "교육", "정치", "문화", "영화", "음식", "취미", "직업", "사회적", "기업",
+	        "철학", "사회적", "미래", "과학", "예술", "디지털", "로봇", "우주", "행복", "건강",
+	        "사회적", "보안", "패션", "자율성", "언어", "소셜", "개발", "탐험", "환경", "가치",
+	        "혁신", "인공지능", "정보", "리더십", "책임", "평등", "연대", "공정", "진보", "자유",
+	        "도전", "상상", "창의성", "협력", "연구", "테크", "디자인", "커리어", "창업", "복지",
+	        "디지털화", "로봇공학", "인터넷", "스마트폰", "기술적", "전략", "친환경", "소셜미디어",
+	        "브랜딩", "인테리어", "자율주행", "블록체인", "클라우드", "빅데이터", "AI", "교육과정",
+	        "프로그래밍", "데이터", "네트워크", "연구개발", "스타트업", "경제학", "금융", "자산관리",
+	        "비즈니스", "트렌드", "스마트시티", "디지털트윈", "모바일", "웨어러블", "카메라", "5G",
+	        "IoT", "스마트홈", "헬스케어", "글로벌", "사회적책임", "전자상거래", "디지털화", "e커머스"
+	    ]
+	
+	    # 여기서는 5개의 문장을 생성해봄
+	    for i in range(5):
+	        # 랜덤 단어 선택
+	        random_word = random.choice(random_words)
+	
+	        # 해당 단어를 시작점으로 문장 생성
+	        sentence = generate_random_sentence(model, tokenizer, device, random_word)
+	        # 맞춤법 교정
+	        corrected_sentence = correct_spelling(sentence)
+	
+	        # "맞춤법을 고쳐주세요:" 라는 프롬프트 형태의 입력-출력 쌍 저장
+	        input_texts.append(f"맞춤법을 고쳐주세요: {sentence}")
+	        output_texts.append(corrected_sentence)
+	
+	    return input_texts, output_texts
+	
+	def append_to_json(input_texts, output_texts):
+	    """
+	    생성된 input_texts, output_texts 데이터를 기존 JSON 파일에 덧붙여 저장합니다.
+	    - 기존 random_sample.json 파일을 읽어 input_texts, output_texts를 확장한 뒤 다시 저장합니다.
+	    - 파일이 없을 경우 새로운 구조의 JSON을 생성합니다.
+	    """
+	    try:
+	        with open(output_file, "r", encoding="utf-8") as f:
+	            existing_data = json.load(f)
+	    except FileNotFoundError:
+	        # 파일이 없으면 새로운 구조로 초기화
+	        existing_data = {"input_texts": [], "output_texts": []}
+	
+	    # 새로운 데이터를 기존 데이터에 추가
+	    existing_data["input_texts"].extend(input_texts)
+	    existing_data["output_texts"].extend(output_texts)
+	
+	    # 덧붙인 데이터를 다시 JSON 파일로 저장
+	    with open(output_file, "w", encoding="utf-8") as f:
+	        json.dump(existing_data, f, ensure_ascii=False, indent=4)
+	
+	    print(f"랜덤 샘플링된 데이터가 {output_file}에 덧붙여졌습니다.")
+	
+	def choose_learning_method():
+	    """
+	    사용자에게 데이터셋 생성 방식을 선택하게 한 뒤,
+	    선택된 방식에 따라 데이터 생성 로직을 실행합니다.
+	    1. 국립국어원 JSON 데이터 기반
+	    2. 랜덤 문장 생성 기반
+	    """
+	    print("데이터셋 생성 방법을 선택하세요:")
+	    print("1. 국립국어원 JSON 파일 기반으로 생성")
+	    print("2. 랜덤으로 문장 생성")
+	
+	    choice = input("번호를 선택하세요: ")
+	
+	    if choice == "1":
+	        # 기존 국립국어원 JSON 파일에서 (원문, 교정문) 쌍을 랜덤 추출
+	        print("기존 JSON 파일을 학습합니다.")
+	        utterances = load_existing_data()
+	        input_texts, output_texts = get_random_samples(utterances, num_samples=10)
+	        append_to_json(input_texts, output_texts)
+	    elif choice == "2":
+	        # GPT-2를 사용해 랜덤한 문장을 만들고, 맞춤법 교정한 뒤 JSON 파일에 저장
+	        print("랜덤 문장을 학습합니다.")
+	        input_texts, output_texts = prepare_data_for_training(is_random=True)
+	        append_to_json(input_texts, output_texts)
+	
+	# 메인 실행부
+	if __name__ == "__main__":
+	    choose_learning_method()
+	
+	
+	#### train_model.py
+	import torch
+	from transformers import T5ForConditionalGeneration, T5Tokenizer
+	from transformers import Trainer, TrainingArguments
+	import json
+	from sklearn.model_selection import train_test_split
+	
+	# ------------------------------------------------------------
+	# 이 스크립트는 T5 모델을 활용하여 맞춤법 교정 모델을 파인튜닝하는 과정의 예시를 보여줍니다.
+	#
+	# 주요 흐름:
+	# 1. 사전 학습된 T5 맞춤법 교정 모델과 토크나이저 로드
+	# 2. 미리 준비된 JSON 데이터에서 "input_texts"와 "output_texts"를 불러옴
+	# 3. 데이터 전처리 후 훈련/검증 데이터로 분할
+	# 4. 토크나이저를 사용하여 텍스트를 인덱싱
+	# 5. PyTorch Dataset 형태로 변환
+	# 6. Trainer를 활용하여 파인튜닝 수행
+	# 7. 파인튜닝 완료 후 모델과 토크나이저 저장
+	#
+	# 주석을 통해 각 단계별로 역할을 명확히 설명하였습니다.
+	# ------------------------------------------------------------
+	
+	# T5 모델 및 토크나이저 로드
+	# "j5ng/et5-typos-corrector" 모델은 미리 한글 맞춤법 교정에 최적화된 T5 계열 모델
+	model = T5ForConditionalGeneration.from_pretrained("j5ng/et5-typos-corrector")
+	tokenizer = T5Tokenizer.from_pretrained("j5ng/et5-typos-corrector")
+	
+	# JSON 데이터 파일 로드
+	# 이 파일에는 {"input_texts": [...], "output_texts": [...]} 구조로 데이터가 저장되어 있음
+	input_file = "./dataset/random_sample.json"
+	with open(input_file, "r", encoding="utf-8") as f:
+	    data = json.load(f)
+	
+	# "input_texts"와 "output_texts" 분리
+	input_texts = data["input_texts"]
+	output_texts = data["output_texts"]
+	
+	# 훈련 세트와 검증 세트로 분할
+	# test_size=0.2는 20% 데이터를 검증용으로 사용
+	train_df, val_df = train_test_split(list(zip(input_texts, output_texts)), test_size=0.2, random_state=42)
+	
+	# T5 모델 훈련에 맞추어 입력 문장 전처리
+	# "맞춤법을 고쳐주세요: " 문구를 앞에 붙여, 모델이 교정 작업을 해야 함을 명시
+	# 출력 문장 끝에 "."를 붙여 마침표로 문장 종결 형식 유지 (선택 사항)
+	train_input = ["맞춤법을 고쳐주세요: " + item[0] for item in train_df]
+	train_output = [item[1] + "." for item in train_df]
+	
+	val_input = ["맞춤법을 고쳐주세요: " + item[0] for item in val_df]
+	val_output = [item[1] + "." for item in val_df]
+	
+	# 토크나이징:
+	# max_length=128: 문장 최대 길이를 128 토큰으로 제한
+	# padding=True, truncation=True: 필요한 경우 패딩 및 잘라내기
+	train_encodings = tokenizer(train_input, max_length=128, padding=True, truncation=True)
+	train_labels_encodings = tokenizer(train_output, max_length=128, padding=True, truncation=True)
+	
+	val_encodings = tokenizer(val_input, max_length=128, padding=True, truncation=True)
+	val_labels_encodings = tokenizer(val_output, max_length=128, padding=True, truncation=True)
+	
+	# PyTorch Dataset 클래스 정의
+	# 모델 학습에 필요한 형태로 데이터를 만들어줌
+	class SpellCorrectionDataset(torch.utils.data.Dataset):
+	    def __init__(self, encodings, labels_encodings):
+	        self.encodings = encodings
+	        self.labels_encodings = labels_encodings
+	
+	    def __getitem__(self, idx):
+	        # encodings에서 인덱스 idx의 토큰 텐서들을 가져옴
+	        item = {key: torch.tensor(val[idx]) for key, val in self.encodings.items()}
+	        # labels는 labels_encodings의 input_ids를 사용
+	        item["labels"] = torch.tensor(self.labels_encodings["input_ids"][idx])
+	        return item
+	
+	    def __len__(self):
+	        return len(self.encodings["input_ids"])
+	
+	# 훈련/검증용 Dataset 생성
+	train_dataset = SpellCorrectionDataset(train_encodings, train_labels_encodings)
+	val_dataset = SpellCorrectionDataset(val_encodings, val_labels_encodings)
+	
+	# TrainingArguments 설정
+	# 모델 출력 경로, 학습률, 배치 사이즈, 에폭 수, weight decay 등 설정
+	training_args = TrainingArguments(
+	    output_dir="./outputs",
+	    evaluation_strategy="epoch",   # 매 epoch마다 검증
+	    learning_rate=1e-4,
+	    per_device_train_batch_size=32,
+	    num_train_epochs=8,
+	    weight_decay=0.01,
+	    save_strategy="epoch",         # 매 epoch마다 체크포인트 저장
+	    metric_for_best_model="eval_loss", 
+	    greater_is_better=False        # eval_loss는 작을수록 좋음
+	)
+	
+	# Trainer 초기화
+	trainer = Trainer(
+	    model=model,
+	    args=training_args,
+	    train_dataset=train_dataset,
+	    eval_dataset=val_dataset,
+	)
+	
+	# 모델 파인튜닝 시작
+	trainer.train()
+	
+	# 파인튜닝 완료 후 모델과 토크나이저 저장
+	model.save_pretrained("./fine_tuned_model", safe_serialization=False)
+	tokenizer.save_pretrained("./fine_tuned_model")
+	
+	# PyTorch 형식으로 모델 가중치 저장
+	torch.save(model.state_dict(), './fine_tuned_model/pytorch_model.bin')
+	
+	print("훈련 완료 및 모델 저장 완료")
+	
+	
+	#### app.py
+	from flask import Flask, render_template, request, jsonify
+	import torch
+	from transformers import T5ForConditionalGeneration, T5Tokenizer
+	from hanspell import spell_checker  # Hanspell 사용
+	
+	# ------------------------------------------------------------
+	# 이 Flask 애플리케이션은 다음 세 가지 맞춤법 검사 방식을 제공합니다:
+	# 1. 파인튜닝되지 않은 기본 모델(untuned_model)을 사용한 맞춤법 교정
+	# 2. 파인튜닝된 모델(fine_tuned_model)을 사용한 맞춤법 교정
+	# 3. Hanspell 패키지를 이용한 맞춤법 교정
+	#
+	# 사용자는 웹 인터페이스(index.html)에서 텍스트를 입력하고, 
+	# 원하는 검사기(untuned, tuned, hanspell)를 선택하여 맞춤법 교정을 요청할 수 있습니다.
+	#
+	# 주요 로직:
+	# - '/' 라우트: index.html 렌더링(메인 페이지)
+	# - '/check' 라우트: POST 방식으로 텍스트 및 검사기 타입을 받아 맞춤법 검사 결과 반환
+	#
+	# 이 코드는 Flask 앱을 실행시킨 뒤, localhost:5000 (또는 지정한 포트)에서 
+	# 웹페이지에 접속해 텍스트를 입력하고 검사 결과를 확인할 수 있습니다.
+	# ------------------------------------------------------------
+	
+	app = Flask(__name__)
+	
+	# 파인튜닝된 모델 및 토크나이저 로드 경로
+	model_path = './fine_tuned_model'
+	tokenizer_path = './fine_tuned_model'
+	
+	# 파인튜닝되지 않은 모델 로드
+	# "j5ng/et5-typos-corrector"는 기본 한글 맞춤법 교정 T5 모델
+	untuned_model = T5ForConditionalGeneration.from_pretrained("j5ng/et5-typos-corrector")
+	untuned_tokenizer = T5Tokenizer.from_pretrained("j5ng/et5-typos-corrector")
+	
+	# 파인튜닝된 모델 로드
+	fine_tuned_model = T5ForConditionalGeneration.from_pretrained(model_path)
+	fine_tuned_tokenizer = T5Tokenizer.from_pretrained(tokenizer_path)
+	
+	# GPU 사용 가능 여부 확인하여 모델 디바이스 설정
+	device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+	untuned_model.to(device)
+	fine_tuned_model.to(device)
+	
+	@app.route('/')
+	def index():
+	    """
+	    메인 페이지 렌더링: index.html 반환
+	    사용자가 웹 UI를 통해 텍스트를 입력하고, 검사 방식을 선택할 수 있는 인터페이스 제공
+	    """
+	    return render_template('index.html')
+	
+	@app.route('/check', methods=['POST'])
+	def check_spelling():
+	    """
+	    맞춤법 검사 요청을 처리하는 엔드포인트.
+	    사용자가 입력한 텍스트와 선택한 검사기 타입을 받아, 해당 방식으로 맞춤법 교정 후 결과를 JSON 형태로 반환.
+	    """
+	    text = request.form.get('text')  # 사용자가 입력한 텍스트
+	    checker_type = request.form.get('checker')  # 선택된 검사기 유형 (untuned, tuned, hanspell)
+	
+	    if not text:
+	        return jsonify({'error': '텍스트를 입력해주세요.'})
+	
+	    # 선택된 검사 방식에 따라 처리
+	    if checker_type == 'model_untuned':
+	        # 파인튜닝되지 않은 모델로 맞춤법 교정
+	        input_encoding = untuned_tokenizer("맞춤법을 고쳐주세요: " + text, return_tensors="pt").to(device)
+	        input_ids = input_encoding.input_ids
+	        attention_mask = input_encoding.attention_mask
+	
+	        # T5 모델을 사용해 결과 생성
+	        output_encoding = untuned_model.generate(
+	            input_ids=input_ids,
+	            attention_mask=attention_mask,
+	            max_length=128,
+	            num_beams=5,
+	            early_stopping=True,
+	        )
+	        output_text = untuned_tokenizer.decode(output_encoding[0], skip_special_tokens=True)
+	
+	        return jsonify({
+	            'original_text': text,
+	            'checked_text': output_text
+	        })
+	
+	    elif checker_type == 'model_tuned':
+	        # 파인튜닝된 모델로 맞춤법 교정
+	        input_encoding = fine_tuned_tokenizer("맞춤법을 고쳐주세요: " + text, return_tensors="pt").to(device)
+	        input_ids = input_encoding.input_ids
+	        attention_mask = input_encoding.attention_mask
+	
+	        # 파인튜닝된 모델을 사용한 결과 생성
+	        output_encoding = fine_tuned_model.generate(
+	            input_ids=input_ids,
+	            attention_mask=attention_mask,
+	            max_length=128,
+	            num_beams=5,
+	            early_stopping=True,
+	        )
+	        output_text = fine_tuned_tokenizer.decode(output_encoding[0], skip_special_tokens=True)
+	
+	        return jsonify({
+	            'original_text': text,
+	            'checked_text': output_text
+	        })
+	
+	    elif checker_type == 'hanspell':
+	        # Hanspell 라이브러리를 사용한 맞춤법 교정
+	        try:
+	            corrected_text = spell_checker.check(text).checked
+	            return jsonify({
+	                'original_text': text,
+	                'checked_text': corrected_text
+	            })
+	        except Exception as e:
+	            return jsonify({
+	                'error': f'Hanspell 처리 중 오류 발생: {str(e)}'
+	            })
+	
+	    else:
+	        # 지원하지 않는 검사기 타입일 경우 에러 반환
+	        return jsonify({'error': '잘못된 검사기 선택입니다.'})
+	
+	if __name__ == '__main__':
+	    # 개발용 서버 실행 (디버그 모드)
+	    # 실제 배포 시에는 WSGI 서버를 사용하여 실행 권장 (아쉽게도 이부분은 비용문제로 진행하지 못함)
+	    app.run(debug=True)
+	
+	
+	
+	#### index.html(메모장같은 다른 확장 프로그램으로 켜시면 보실 수 있습니다.)
+	<!DOCTYPE html>
+	<html lang="ko">
+	<head>
+	    <meta charset="UTF-8">
+	    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+	    <title>맞춤법 검사기</title>
+	    <style>
+	        /* 기본 페이지 스타일 설정 */
+	        body {
+	            font-family: Arial, sans-serif; /* 기본 글꼴 설정 */
+	            display: flex; /* 플렉스 박스 레이아웃 사용 */
+	            justify-content: center; /* 수평 중앙 정렬 */
+	            align-items: center; /* 수직 중앙 정렬 */
+	            height: 100vh; /* 뷰포트 전체 높이 사용 */
+	            margin: 0; /* 기본 마진 제거 */
+	            background-color: #f4f4f4; /* 배경 색상 설정 */
+	            transition: background-color 0.3s ease, color 0.3s ease; /* 배경 및 텍스트 색상 전환 애니메이션 */
+	            background-image: url('your-image-path.jpg'); /* 배경 이미지 경로 설정 */
+	            background-size: cover; /* 배경 이미지 크기를 화면에 맞게 조정 */
+	            background-position: center; /* 배경 이미지 중앙 정렬 */
+	            flex-direction: column; /* 플렉스 아이템을 수직으로 배치 */
+	        }
+	
+	        /* 중앙 컨테이너 스타일 */
+	        .container {
+	            text-align: center; /* 텍스트 중앙 정렬 */
+	            background-color: rgba(255, 255, 255, 0.8); /* 반투명한 흰색 배경 */
+	            padding: 30px; /* 내부 여백 */
+	            border-radius: 10px; /* 둥근 모서리 */
+	            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1); /* 그림자 효과로 입체감 부여 */
+	            width: 100%; /* 너비 100% */
+	            max-width: 500px; /* 최대 너비 500px로 제한 */
+	            position: relative; /* 상대 위치 지정 */
+	            transition: background-color 0.3s ease, box-shadow 0.3s ease; /* 배경과 그림자 변경 애니메이션 */
+	        }
+	
+	        /* 텍스트 입력 영역 스타일 */
+	        textarea {
+	            width: 100%; /* 너비 100%로 설정 */
+	            height: 100px; /* 높이 100px로 설정 */
+	            padding: 10px; /* 내부 여백 */
+	            margin-bottom: 20px; /* 아래 여백 */
+	            border-radius: 5px; /* 둥근 모서리 */
+	            border: 1px solid #ccc; /* 회색 테두리 */
+	            font-size: 16px; /* 글자 크기 설정 */
+	            transition: border-color 0.3s ease; /* 테두리 색상 전환 애니메이션 */
+	        }
+	
+	        /* 제출 버튼 스타일 */
+	        button {
+	            padding: 10px 20px; /* 내부 여백 */
+	            background-color: #4CAF50; /* 녹색 배경 */
+	            color: white; /* 흰색 텍스트 */
+	            border: none; /* 테두리 제거 */
+	            border-radius: 5px; /* 둥근 모서리 */
+	            cursor: pointer; /* 마우스 포인터 변경 */
+	            font-size: 16px; /* 글자 크기 설정 */
+	            transition: background-color 0.3s ease; /* 배경 색상 전환 애니메이션 */
+	        }
+	
+	        /* 버튼에 마우스를 올렸을 때 색상 변경 */
+	        button:hover {
+	            background-color: #45a049; /* 조금 더 진한 녹색으로 변경 */
+	        }
+	
+	        /* 맞춤법 검사 결과 영역 스타일 */
+	        .result {
+	            margin-top: 20px; /* 위 여백 */
+	            text-align: center; /* 텍스트 중앙 정렬 */
+	            background-color: #e8f5e9; /* 연한 녹색 배경 */
+	            padding: 15px; /* 내부 여백 */
+	            border-radius: 5px; /* 둥근 모서리 */
+	            border: 1px solid #4CAF50; /* 녹색 테두리 */
+	            white-space: pre-wrap; /* 공백과 줄바꿈 유지 */
+	            word-wrap: break-word; /* 긴 단어 자동 줄바꿈 */
+	            display: none; /* 초기에는 숨김 상태 */
+	            transition: background-color 0.3s ease, color 0.3s ease; /* 배경 및 텍스트 색상 전환 애니메이션 */
+	        }
+	
+	        /* 결과 영역 내부의 각 텍스트 블록 스타일 */
+	        .result div {
+	            margin-bottom: 10px; /* 아래 여백 */
+	            font-size: 18px; /* 글자 크기 설정 */
+	            text-align: center; /* 텍스트 중앙 정렬 */
+	        }
+	
+	        /* 다크 모드 활성화 시 스타일 */
+	        body.dark-mode {
+	            background-color: #121212; /* 어두운 배경 색상 */
+	            color: white; /* 흰색 텍스트 */
+	        }
+	
+	        .container.dark-mode {
+	            background-color: #333; /* 어두운 배경 색상 */
+	            box-shadow: 0 4px 8px rgba(255, 255, 255, 0.1); /* 어두운 그림자 색상 */
+	        }
+	
+	        textarea.dark-mode {
+	            background-color: #555; /* 어두운 텍스트 입력 배경 */
+	            border: 1px solid #777; /* 어두운 테두리 색상 */
+	            color: white; /* 흰색 텍스트 */
+	        }
+	
+	        button.dark-mode {
+	            background-color: #333; /* 어두운 버튼 배경 */
+	        }
+	
+	        .result.dark-mode {
+	            background-color: #444; /* 어두운 결과 배경 */
+	            color: white; /* 흰색 텍스트 */
+	            border: 1px solid #777; /* 어두운 테두리 색상 */
+	        }
+	
+	        /* 다크모드 전환 버튼 스타일 */
+	        #toggle-theme {
+	            position: fixed; /* 화면 고정 위치 */
+	            bottom: 20px; /* 화면 하단에서 20px 위 */
+	            left: 50%; /* 수평 중앙 정렬 */
+	            transform: translateX(-50%); /* 정확한 중앙으로 이동 */
+	            padding: 10px 20px; /* 내부 여백 */
+	            background-color: #4CAF50; /* 녹색 배경 */
+	            color: white; /* 흰색 텍스트 */
+	            border: none; /* 테두리 제거 */
+	            border-radius: 5px; /* 둥근 모서리 */
+	            cursor: pointer; /* 마우스 포인터 변경 */
+	            font-size: 16px; /* 글자 크기 설정 */
+	            transition: background-color 0.3s ease; /* 배경 색상 전환 애니메이션 */
+	        }
+	
+	        /* 다크모드 전환 버튼에 마우스를 올렸을 때 색상 변경 */
+	        #toggle-theme:hover {
+	            background-color: #45a049; /* 조금 더 진한 녹색으로 변경 */
+	        }
+	
+	        /* 로고 이미지 크기 조정 */
+	        #logo1, #logo2 {
+	            width: 300px; /* 너비 300px로 설정 */
+	            height: auto; /* 높이는 자동으로 조정 */
+	            margin-bottom: 20px; /* 아래 여백 */
+	        }
+	
+	        /* 라디오 버튼 숨기기 */
+	        input[type="radio"] {
+	            display: none; /* 기본 라디오 버튼 숨김 */
+	        }
+	
+	        /* 선택된 라디오 버튼을 대체하는 아이콘 스타일 */
+	        input[type="radio"]:checked + label::before {
+	            content: "🤖"; /* 로봇 아이콘 표시 */
+	            display: inline-block; /* 인라인 블록으로 표시 */
+	            width: 30px; /* 너비 30px */
+	            height: 30px; /* 높이 30px */
+	            font-size: 30px; /* 아이콘 크기 설정 */
+	            margin-right: 10px; /* 오른쪽 여백 */
+	            cursor: pointer; /* 마우스 포인터 변경 */
+	        }
+	
+	        /* 선택되지 않은 라디오 버튼을 대체하는 아이콘 스타일 */
+	        input[type="radio"]:not(:checked) + label::before {
+	            content: "⚙️"; /* 톱니바퀴 아이콘 표시 */
+	            display: inline-block; /* 인라인 블록으로 표시 */
+	            width: 30px; /* 너비 30px */
+	            height: 30px; /* 높이 30px */
+	            font-size: 30px; /* 아이콘 크기 설정 */
+	            margin-right: 10px; /* 오른쪽 여백 */
+	            cursor: pointer; /* 마우스 포인터 변경 */
+	        }
+	
+	        /* 라벨 텍스트 스타일 */
+	        label {
+	            display: inline-block; /* 인라인 블록으로 표시 */
+	            margin: 5px; /* 마진 설정 */
+	            font-size: 18px; /* 글자 크기 설정 */
+	        }
+	    </style>
+	</head>
+	<body>
+	    <div class="container">
+	        <!-- 상단 로고 이미지 -->
+	        <img id="logo1" src="{{ url_for('static', filename='logo.png') }}" alt="Logo1"><br>
+	        
+	        <!-- 페이지 제목 -->
+	        <h1>맞춤법 검사기</h1>
+	        
+	        <!-- 맞춤법 검사 폼 -->
+	        <form id="spellcheck-form" action="/check" method="post">
+	            <!-- 텍스트 입력 영역 -->
+	            <textarea id="text-input" name="text" placeholder="텍스트를 입력하세요"></textarea><br>
+	            
+	            <!-- 검사기 선택 라디오 버튼 -->
+	            <label>검사기 선택:</label><br>
+	            <!-- Hanspell 검사기 선택 라디오 버튼 -->
+	            <input type="radio" id="hanspell" name="checker" value="hanspell" checked>
+	            <label for="hanspell">Hanspell</label><br>
+	            <!-- 파인튜닝되지 않은 모델 기반 검사기 선택 라디오 버튼 -->
+	            <input type="radio" id="model_untuned" name="checker" value="model_untuned">
+	            <label for="model_untuned">모델 기반 맞춤법 검사기 (튜닝 안된 모델)</label><br>
+	            <!-- 파인튜닝된 모델 기반 검사기 선택 라디오 버튼 -->
+	            <input type="radio" id="model_tuned" name="checker" value="model_tuned">
+	            <label for="model_tuned">모델 기반 맞춤법 검사기 (파인튜닝된 모델)</label><br>
+	            
+	            <!-- 검사 시작 버튼 -->
+	            <button type="submit">검사하기</button>
+	        </form>
+	        
+	        <!-- 맞춤법 검사 결과 표시 영역 -->
+	        <div id="result" class="result">
+	            <div id="original-text"></div> <!-- 원본 텍스트 표시 -->
+	            <div id="checked-text"></div> <!-- 수정된 텍스트 표시 -->
+	        </div> <!-- 결과 영역 종료 -->
+	        
+	        <!-- 하단 로고 이미지 -->
+	        <img id="logo2" src="{{ url_for('static', filename='logo2.png') }}" alt="Logo2"><br>
+	    </div>
+	    
+	    <!-- 다크모드 전환 버튼 -->
+	    <button id="toggle-theme">다크모드 전환</button>
+	    
+	    <script>
+	        // JavaScript 코드 섹션
+	
+	        // 폼 및 결과 요소 선택
+	        const form = document.getElementById('spellcheck-form'); // 맞춤법 검사 폼
+	        const resultDiv = document.getElementById('result'); // 결과 표시 영역
+	        const originalTextDiv = document.getElementById('original-text'); // 원본 텍스트 표시 div
+	        const checkedTextDiv = document.getElementById('checked-text'); // 수정된 텍스트 표시 div
+	        const textInput = document.getElementById('text-input'); // 텍스트 입력 영역
+	        const toggleThemeButton = document.getElementById('toggle-theme'); // 다크모드 전환 버튼
+	
+	        // 다크모드 전환 기능
+	        toggleThemeButton.addEventListener('click', function() {
+	            // 페이지 전체에 'dark-mode' 클래스 토글
+	            document.body.classList.toggle('dark-mode');
+	            // 컨테이너에도 'dark-mode' 클래스 토글
+	            document.querySelector('.container').classList.toggle('dark-mode');
+	            // 텍스트 입력 영역에도 'dark-mode' 클래스 토글
+	            textInput.classList.toggle('dark-mode');
+	            // 모든 버튼에도 'dark-mode' 클래스 토글
+	            document.querySelectorAll('button').forEach(function(btn) {
+	                btn.classList.toggle('dark-mode');
+	            });
+	            // 결과 표시 영역에도 'dark-mode' 클래스 토글
+	            resultDiv.classList.toggle('dark-mode');
+	        });
+	
+	        // 맞춤법 검사 폼 제출 이벤트 핸들러
+	        form.addEventListener('submit', function(event) {
+	            event.preventDefault(); // 폼의 기본 제출 동작(페이지 새로고침) 방지
+	
+	            // 폼 데이터를 FormData 객체로 수집
+	            const formData = new FormData(form);
+	            const checkerType = formData.get('checker'); // 선택된 검사기 유형 가져오기
+	
+	            // 서버로 POST 요청 보내기
+	            fetch('/check', { // 서버의 '/check' 엔드포인트로 요청
+	                method: 'POST', // HTTP 메서드 POST 사용
+	                body: formData // 폼 데이터 전송
+	            })
+	            .then(response => response.json()) // 응답을 JSON으로 파싱
+	            .then(data => {
+	                if (data.error) {
+	                    // 서버에서 에러 메시지를 반환한 경우
+	                    resultDiv.innerHTML = `<div>${data.error}</div>`; // 에러 메시지 표시
+	                } else {
+	                    // 성공적으로 맞춤법 검사를 완료한 경우
+	                    originalTextDiv.textContent = "원본 문장: " + data.original_text; // 원본 텍스트 표시
+	                    checkedTextDiv.textContent = "수정된 문장: " + data.checked_text; // 수정된 텍스트 표시
+	                    resultDiv.style.display = 'block'; // 결과 영역 보이기
+	                }
+	            })
+	            .catch(error => {
+	                // 네트워크 오류나 기타 예외가 발생한 경우
+	                resultDiv.innerHTML = "<div>에러가 발생했습니다. 다시 시도해주세요.</div>"; // 에러 메시지 표시
+	                resultDiv.style.display = 'block'; // 결과 영역 보이기
+	            });
+	        });
+	    </script>
+	</body>
+	</html>
 
 
 

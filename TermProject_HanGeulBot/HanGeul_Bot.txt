@@ -1,9 +1,10 @@
 HanGeul_Bot/
 │
-├── spell_check_external.py   # 외부 맞춤법 검사기(실패 했지만 일단 보류)
 ├── app.py                    # Flask 웹 서버 실행 코드
 ├── train_model.py            # 모델 훈련 코드
 ├── random_sample.py          # 훈련 데이터셋 생성 코드
+│
+├── requirement.txt          # 필요 모듈 및 버전
 │
 ├── README.md				#프로젝트 설명 파일
 │

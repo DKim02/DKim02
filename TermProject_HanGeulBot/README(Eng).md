@@ -316,762 +316,762 @@ This project successfully trained a Korean spelling correction model and impleme
 ## random_sample.py File View
 #### random_sample.py
 
-import json
-import random
-from hanspell import spell_checker
-import torch
-from transformers import GPT2LMHeadModel, PreTrainedTokenizerFast
-import re
-
-# ------------------------------------------------------------
-# This script generates "input text -> corrected output text" pairs
-# through two methods and saves them as a separate JSON file.
-#
-# 1. Based on the JSON dataset provided by the National Institute of Korean Language:
-#    - Extracts pairs of original and corrected sentences from the given JSON file (MXEC2202210100.json) and randomly samples some of them.
-#    - Formats the sampled sentences as inputs with the prompt "Please correct the spelling:" and sets the corrected sentences as outputs.
-#
-# 2. Based on randomly generated sentences:
-#    - Loads a pre-trained Korean GPT-2 language model to generate sentences by selecting random words from a predefined word list.
-#    - Corrects the generated sentences using the hanspell package and pairs them with inputs in the form of "Please correct the spelling:".
-#
-# In both cases, the results are appended to the JSON file (`random_sample.json`).
-# ------------------------------------------------------------
-
-# Model and tokenizer paths
-model_path = "./d0c0df48bf2b2c9350dd855021a5b216f560c0c7"
-tokenizer_path = "./d0c0df48bf2b2c9350dd855021a5b216f560c0c7"
-
-# Dataset-related file paths
-output_file = "./dataset/random_sample.json"  # File to save the generated dataset
-input_file = "./dataset/MXEC2202210100.json" # Path to the National Institute of Korean Language JSON file
-
-def load_model():
-    """
-    Loads the pre-trained GPT-2 language model and tokenizer, and moves them to GPU if available.
-    """
-    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    tokenizer = PreTrainedTokenizerFast.from_pretrained(tokenizer_path)
-    model = GPT2LMHeadModel.from_pretrained(model_path)
-    model.to(device)
-    return model, tokenizer, device
-
-def generate_random_sentence(model, tokenizer, device, input_text):
-    """
-    Generates a sentence based on the input_text using the model.
-    Generation process:
-    - Generates up to 50 tokens.
-    - Prevents repeating n-grams.
-    - Stops the sentence generation upon encountering a period '.'.
-    """
-    input_ids = tokenizer.encode(input_text, return_tensors='pt').to(device)
-    output = model.generate(
-        input_ids,
-        max_length=50,
-        num_return_sequences=1,
-        no_repeat_ngram_size=2,
-        pad_token_id=tokenizer.eos_token_id,
-        eos_token_id=tokenizer.encode('.')[0]
-    )
-    generated_text = tokenizer.decode(output[0], skip_special_tokens=True)
-
-    # Truncate the sentence at the first period.
-    if '.' in generated_text:
-        generated_text = generated_text.split('.')[0] + '.'
-
-    return generated_text
-
-def correct_spelling(input_text):
-    """
-    Performs spelling correction on the input_text using hanspell and returns the corrected sentence.
-    """
-    corrected = spell_checker.check(input_text)
-    return corrected.checked
-
-def clean_text(text):
-    """
-    Text preprocessing function:
-    - Removes specific special characters (.,)
-    - Removes name tags in the form &name\d+&
-    - Treats sentences shorter than 2 characters as empty strings
-    """
-    # Remove special characters
-    text = re.sub(r"[.,]", "", text)
-    # Remove &name\d+& patterns
-    text = re.sub(r"\S*&name\d+&\S*", "", text)
-    # Return empty string if length is less than 2
-    if len(text) < 2:
-        return ""
-    return text
-
-def load_existing_data():
-    """
-    Loads original and corrected sentences from the given JSON file provided by the National Institute of Korean Language.
-    Applies preprocessing to remove unnecessary parts and returns a list of (original, corrected) pairs.
-    """
-    try:
-        with open(input_file, "r", encoding="utf-8") as f:
-            dataset = json.load(f)
-    except FileNotFoundError:
-        print("File not found.")
-        return []
-
-    utterances = []
-    for document in dataset.get('document', []):
-        for utterance in document.get('utterance', []):
-            original_form = utterance.get('original_form', '')
-            corrected_form = utterance.get('corrected_form', '')
-
-            # Apply preprocessing
-            original_form = clean_text(original_form)
-            corrected_form = clean_text(corrected_form)
-
-            # Add to list only if both sentences are valid after preprocessing
-            if original_form and corrected_form:
-                utterances.append((original_form, corrected_form))
-
-    return utterances
-
-def get_random_samples(utterances, num_samples=3):
-    """
-    Randomly samples num_samples pairs from the list of (original, corrected) utterances.
-    Separates them into input_texts with the prompt and output_texts as corrected sentences.
-    """
-    random.seed()  # Do not fix the random seed to get different results each run
-    sampled_utterances = random.sample(utterances, num_samples)
-    input_texts = [f"Please correct the spelling: {item[0]}" for item in sampled_utterances]
-    output_texts = [item[1] for item in sampled_utterances]
-    return input_texts, output_texts
-
-def prepare_data_for_training(is_random):
-    """
-    Generates sentences using GPT-2 based on random words and corrects them using hanspell.
-    - Selects a random word from a predefined list.
-    - Generates a sentence based on the selected word.
-    - Corrects the generated sentence using hanspell.
-    - Saves the input-output pairs with the prompt and corrected sentence.
-    """
-    model, tokenizer, device = load_model()
-
-    input_texts = []
-    output_texts = []
-
-    # Predefined list of random words for sentence generation
-    random_words = [
-        "love", "climate", "exercise", "technology", "society", "music", "travel", "book", "weather", "economy",
-        "game", "education", "politics", "culture", "movie", "food", "hobby", "profession", "social", "company",
-        "philosophy", "social", "future", "science", "art", "digital", "robot", "space", "happiness", "health",
-        "social", "security", "fashion", "autonomy", "language", "social media", "development", "exploration", "environment", "value",
-        "innovation", "artificial intelligence", "information", "leadership", "responsibility", "equality", "solidarity", "fairness", "progress", "freedom",
-        "challenge", "imagination", "creativity", "collaboration", "research", "tech", "design", "career", "startup", "welfare",
-        "digitalization", "robotics", "internet", "smartphone", "technical", "strategy", "eco-friendly", "social media",
-        "branding", "interior", "autonomous driving", "blockchain", "cloud", "big data", "AI", "curriculum",
-        "programming", "data", "network", "research and development", "startup", "economics", "finance", "asset management",
-        "business", "trend", "smart city", "digital twin", "mobile", "wearable", "camera", "5G",
-        "IoT", "smart home", "healthcare", "global", "corporate social responsibility", "e-commerce", "digitalization", "e-commerce"
-    ]
-
-    # Generate 5 sentences
-    for i in range(5):
-        # Select a random word
-        random_word = random.choice(random_words)
-
-        # Generate a sentence starting with the selected word
-        sentence = generate_random_sentence(model, tokenizer, device, random_word)
-        # Correct the spelling
-        corrected_sentence = correct_spelling(sentence)
-
-        # Save the input-output pair with the prompt
-        input_texts.append(f"Please correct the spelling: {sentence}")
-        output_texts.append(corrected_sentence)
-
-    return input_texts, output_texts
-
-def append_to_json(input_texts, output_texts):
-    """
-    Appends the generated input_texts and output_texts to the existing JSON file.
-    - Reads the existing random_sample.json file and extends the input_texts and output_texts.
-    - Saves the updated data back to the JSON file.
-    - If the file does not exist, initializes a new JSON structure.
-    """
-    try:
-        with open(output_file, "r", encoding="utf-8") as f:
-            existing_data = json.load(f)
-    except FileNotFoundError:
-        # Initialize a new structure if the file does not exist
-        existing_data = {"input_texts": [], "output_texts": []}
-
-    # Add new data to existing data
-    existing_data["input_texts"].extend(input_texts)
-    existing_data["output_texts"].extend(output_texts)
-
-    # Save the appended data back to the JSON file
-    with open(output_file, "w", encoding="utf-8") as f:
-        json.dump(existing_data, f, ensure_ascii=False, indent=4)
-
-    print(f"Randomly sampled data has been appended to {output_file}.")
-
-def choose_learning_method():
-    """
-    Prompts the user to select a dataset generation method and executes the corresponding data generation logic.
-    1. Generate based on the National Institute of Korean Language JSON file
-    2. Generate based on random sentence generation
-    """
-    print("Select a dataset generation method:")
-    print("1. Generate based on the National Institute of Korean Language JSON file")
-    print("2. Generate random sentences")
-
-    choice = input("Please select a number: ")
-
-    if choice == "1":
-        # Randomly extract (original, corrected) pairs from the existing National Institute of Korean Language JSON file
-        print("Training with the existing JSON file.")
-        utterances = load_existing_data()
-        input_texts, output_texts = get_random_samples(utterances, num_samples=10)
-        append_to_json(input_texts, output_texts)
-    elif choice == "2":
-        # Generate random sentences using GPT-2, correct them with hanspell, and save to JSON file
-        print("Training with random sentences.")
-        input_texts, output_texts = prepare_data_for_training(is_random=True)
-        append_to_json(input_texts, output_texts)
-
-# Main execution
-if __name__ == "__main__":
-    choose_learning_method()
-
-
-## train_model.py File View
-#### train_model.py
-
-import torch
-from transformers import T5ForConditionalGeneration, T5Tokenizer
-from transformers import Trainer, TrainingArguments
-import json
-from sklearn.model_selection import train_test_split
-
-# ------------------------------------------------------------
-# This script demonstrates the process of fine-tuning a T5 model
-# for spelling correction using a pre-trained T5 model.
-#
-# Main Flow:
-# 1. Load the pre-trained T5 spelling correction model and tokenizer.
-# 2. Load "input_texts" and "output_texts" from the prepared JSON data.
-# 3. Preprocess the data and split it into training and validation sets.
-# 4. Tokenize the text using the tokenizer.
-# 5. Convert the data into PyTorch Dataset format.
-# 6. Perform fine-tuning using Trainer.
-# 7. Save the fine-tuned model and tokenizer after training.
-#
-# Each step is clearly explained with comments.
-# ------------------------------------------------------------
-
-# Load the T5 model and tokenizer
-# "j5ng/et5-typos-corrector" is a pre-fine-tuned T5 model specialized for Korean spelling correction
-model = T5ForConditionalGeneration.from_pretrained("j5ng/et5-typos-corrector")
-tokenizer = T5Tokenizer.from_pretrained("j5ng/et5-typos-corrector")
-
-# Load JSON data file
-# This file contains data in the format {"input_texts": [...], "output_texts": [...]}
-input_file = "./dataset/random_sample.json"
-with open(input_file, "r", encoding="utf-8") as f:
-    data = json.load(f)
-
-# Separate "input_texts" and "output_texts"
-input_texts = data["input_texts"]
-output_texts = data["output_texts"]
-
-# Split into training and validation sets
-# test_size=0.2 means 20% of the data is used for validation
-train_df, val_df = train_test_split(list(zip(input_texts, output_texts)), test_size=0.2, random_state=42)
-
-# Preprocess input sentences for T5 training
-# Prefix with "Please correct the spelling: " to indicate the task to the model
-# Optionally, append a period '.' at the end of output sentences to maintain sentence termination
-train_input = ["Please correct the spelling: " + item[0] for item in train_df]
-train_output = [item[1] + "." for item in train_df]
-
-val_input = ["Please correct the spelling: " + item[0] for item in val_df]
-val_output = [item[1] + "." for item in val_df]
-
-# Tokenize:
-# max_length=128: limit sentence length to 128 tokens
-# padding=True, truncation=True: apply padding and truncation as needed
-train_encodings = tokenizer(train_input, max_length=128, padding=True, truncation=True)
-train_labels_encodings = tokenizer(train_output, max_length=128, padding=True, truncation=True)
-
-val_encodings = tokenizer(val_input, max_length=128, padding=True, truncation=True)
-val_labels_encodings = tokenizer(val_output, max_length=128, padding=True, truncation=True)
-
-# Define PyTorch Dataset class
-# Converts data into the format required for model training
-class SpellCorrectionDataset(torch.utils.data.Dataset):
-    def __init__(self, encodings, labels_encodings):
-        self.encodings = encodings
-        self.labels_encodings = labels_encodings
-
-    def __getitem__(self, idx):
-        # Retrieve token tensors for the given index
-        item = {key: torch.tensor(val[idx]) for key, val in self.encodings.items()}
-        # Use input_ids from labels_encodings as labels
-        item["labels"] = torch.tensor(self.labels_encodings["input_ids"][idx])
-        return item
-
-    def __len__(self):
-        return len(self.encodings["input_ids"])
-
-# Create training and validation datasets
-train_dataset = SpellCorrectionDataset(train_encodings, train_labels_encodings)
-val_dataset = SpellCorrectionDataset(val_encodings, val_labels_encodings)
-
-# Set up TrainingArguments
-# Defines output directory, learning rate, batch size, number of epochs, weight decay, etc.
-training_args = TrainingArguments(
-    output_dir="./outputs",
-    evaluation_strategy="epoch",   # Evaluate at the end of each epoch
-    learning_rate=1e-4,
-    per_device_train_batch_size=32,
-    num_train_epochs=8,
-    weight_decay=0.01,
-    save_strategy="epoch",         # Save checkpoints at the end of each epoch
-    metric_for_best_model="eval_loss", 
-    greater_is_better=False        # Lower eval_loss is better
-)
-
-# Initialize Trainer
-trainer = Trainer(
-    model=model,
-    args=training_args,
-    train_dataset=train_dataset,
-    eval_dataset=val_dataset,
-)
-
-# Start model fine-tuning
-trainer.train()
-
-# Save the fine-tuned model and tokenizer
-model.save_pretrained("./fine_tuned_model", safe_serialization=False)
-tokenizer.save_pretrained("./fine_tuned_model")
-
-# Save model weights in PyTorch format
-torch.save(model.state_dict(), './fine_tuned_model/pytorch_model.bin')
-
-print("Training complete and model saved.")
-
-
-## app.py File View
-#### app.py
-
-
-from flask import Flask, render_template, request, jsonify
-import torch
-from transformers import T5ForConditionalGeneration, T5Tokenizer
-from hanspell import spell_checker  # Using Hanspell
-
-# ------------------------------------------------------------
-# This Flask application provides three spelling correction methods:
-# 1. Spelling correction using an untuned model (untuned_model)
-# 2. Spelling correction using a fine-tuned model (fine_tuned_model)
-# 3. Spelling correction using the Hanspell package
-#
-# Users can input text on the web interface (index.html),
-# select the desired checker (untuned, tuned, hanspell),
-# and receive spelling corrections.
-#
-# Main Logic:
-# - '/' Route: Renders index.html (main page)
-# - '/check' Route: Handles POST requests to receive text and checker type,
-#                     performs spelling correction, and returns results in JSON format.
-#
-# After running the Flask app, users can access the web page at localhost:5000
-# to input text and view corrected results.
-# ------------------------------------------------------------
-
-app = Flask(__name__)
-
-# Paths to the fine-tuned model and tokenizer
-model_path = './fine_tuned_model'
-tokenizer_path = './fine_tuned_model'
-
-# Load the untuned model
-# "j5ng/et5-typos-corrector" is the default Korean spelling correction T5 model
-untuned_model = T5ForConditionalGeneration.from_pretrained("j5ng/et5-typos-corrector")
-untuned_tokenizer = T5Tokenizer.from_pretrained("j5ng/et5-typos-corrector")
-
-# Load the fine-tuned model
-fine_tuned_model = T5ForConditionalGeneration.from_pretrained(model_path)
-fine_tuned_tokenizer = T5Tokenizer.from_pretrained(tokenizer_path)
-
-# Check if GPU is available and set device accordingly
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-untuned_model.to(device)
-fine_tuned_model.to(device)
-
-@app.route('/')
-def index():
-    """
-    Renders the main page: returns index.html
-    Provides an interface for users to input text and select the checker method
-    """
-    return render_template('index.html')
-
-@app.route('/check', methods=['POST'])
-def check_spelling():
-    """
-    Endpoint to handle spelling correction requests.
-    Receives the input text and selected checker type from the user,
-    performs spelling correction using the chosen method,
-    and returns the results in JSON format.
-    """
-    text = request.form.get('text')  # Text entered by the user
-    checker_type = request.form.get('checker')  # Selected checker type (untuned, tuned, hanspell)
-
-    if not text:
-        return jsonify({'error': 'Please enter text.'})
-
-    # Perform correction based on the selected method
-    if checker_type == 'model_untuned':
-        # Spelling correction using the untuned model
-        input_encoding = untuned_tokenizer("Please correct the spelling: " + text, return_tensors="pt").to(device)
-        input_ids = input_encoding.input_ids
-        attention_mask = input_encoding.attention_mask
-
-        # Generate corrected output using the T5 model
-        output_encoding = untuned_model.generate(
-            input_ids=input_ids,
-            attention_mask=attention_mask,
-            max_length=128,
-            num_beams=5,
-            early_stopping=True,
+    import json
+    import random
+    from hanspell import spell_checker
+    import torch
+    from transformers import GPT2LMHeadModel, PreTrainedTokenizerFast
+    import re
+    
+    # ------------------------------------------------------------
+    # This script generates "input text -> corrected output text" pairs
+    # through two methods and saves them as a separate JSON file.
+    #
+    # 1. Based on the JSON dataset provided by the National Institute of Korean Language:
+    #    - Extracts pairs of original and corrected sentences from the given JSON file (MXEC2202210100.json) and randomly samples some of them.
+    #    - Formats the sampled sentences as inputs with the prompt "Please correct the spelling:" and sets the corrected sentences as outputs.
+    #
+    # 2. Based on randomly generated sentences:
+    #    - Loads a pre-trained Korean GPT-2 language model to generate sentences by selecting random words from a predefined word list.
+    #    - Corrects the generated sentences using the hanspell package and pairs them with inputs in the form of "Please correct the spelling:".
+    #
+    # In both cases, the results are appended to the JSON file (`random_sample.json`).
+    # ------------------------------------------------------------
+    
+    # Model and tokenizer paths
+    model_path = "./d0c0df48bf2b2c9350dd855021a5b216f560c0c7"
+    tokenizer_path = "./d0c0df48bf2b2c9350dd855021a5b216f560c0c7"
+    
+    # Dataset-related file paths
+    output_file = "./dataset/random_sample.json"  # File to save the generated dataset
+    input_file = "./dataset/MXEC2202210100.json" # Path to the National Institute of Korean Language JSON file
+    
+    def load_model():
+        """
+        Loads the pre-trained GPT-2 language model and tokenizer, and moves them to GPU if available.
+        """
+        device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+        tokenizer = PreTrainedTokenizerFast.from_pretrained(tokenizer_path)
+        model = GPT2LMHeadModel.from_pretrained(model_path)
+        model.to(device)
+        return model, tokenizer, device
+    
+    def generate_random_sentence(model, tokenizer, device, input_text):
+        """
+        Generates a sentence based on the input_text using the model.
+        Generation process:
+        - Generates up to 50 tokens.
+        - Prevents repeating n-grams.
+        - Stops the sentence generation upon encountering a period '.'.
+        """
+        input_ids = tokenizer.encode(input_text, return_tensors='pt').to(device)
+        output = model.generate(
+            input_ids,
+            max_length=50,
+            num_return_sequences=1,
+            no_repeat_ngram_size=2,
+            pad_token_id=tokenizer.eos_token_id,
+            eos_token_id=tokenizer.encode('.')[0]
         )
-        output_text = untuned_tokenizer.decode(output_encoding[0], skip_special_tokens=True)
-
-        return jsonify({
-            'original_text': text,
-            'checked_text': output_text
-        })
-
-    elif checker_type == 'model_tuned':
-        # Spelling correction using the fine-tuned model
-        input_encoding = fine_tuned_tokenizer("Please correct the spelling: " + text, return_tensors="pt").to(device)
-        input_ids = input_encoding.input_ids
-        attention_mask = input_encoding.attention_mask
-
-        # Generate corrected output using the fine-tuned T5 model
-        output_encoding = fine_tuned_model.generate(
-            input_ids=input_ids,
-            attention_mask=attention_mask,
-            max_length=128,
-            num_beams=5,
-            early_stopping=True,
-        )
-        output_text = fine_tuned_tokenizer.decode(output_encoding[0], skip_special_tokens=True)
-
-        return jsonify({
-            'original_text': text,
-            'checked_text': output_text
-        })
-
-    elif checker_type == 'hanspell':
-        # Spelling correction using the Hanspell library
+        generated_text = tokenizer.decode(output[0], skip_special_tokens=True)
+    
+        # Truncate the sentence at the first period.
+        if '.' in generated_text:
+            generated_text = generated_text.split('.')[0] + '.'
+    
+        return generated_text
+    
+    def correct_spelling(input_text):
+        """
+        Performs spelling correction on the input_text using hanspell and returns the corrected sentence.
+        """
+        corrected = spell_checker.check(input_text)
+        return corrected.checked
+    
+    def clean_text(text):
+        """
+        Text preprocessing function:
+        - Removes specific special characters (.,)
+        - Removes name tags in the form &name\d+&
+        - Treats sentences shorter than 2 characters as empty strings
+        """
+        # Remove special characters
+        text = re.sub(r"[.,]", "", text)
+        # Remove &name\d+& patterns
+        text = re.sub(r"\S*&name\d+&\S*", "", text)
+        # Return empty string if length is less than 2
+        if len(text) < 2:
+            return ""
+        return text
+    
+    def load_existing_data():
+        """
+        Loads original and corrected sentences from the given JSON file provided by the National Institute of Korean Language.
+        Applies preprocessing to remove unnecessary parts and returns a list of (original, corrected) pairs.
+        """
         try:
-            corrected_text = spell_checker.check(text).checked
+            with open(input_file, "r", encoding="utf-8") as f:
+                dataset = json.load(f)
+        except FileNotFoundError:
+            print("File not found.")
+            return []
+    
+        utterances = []
+        for document in dataset.get('document', []):
+            for utterance in document.get('utterance', []):
+                original_form = utterance.get('original_form', '')
+                corrected_form = utterance.get('corrected_form', '')
+    
+                # Apply preprocessing
+                original_form = clean_text(original_form)
+                corrected_form = clean_text(corrected_form)
+    
+                # Add to list only if both sentences are valid after preprocessing
+                if original_form and corrected_form:
+                    utterances.append((original_form, corrected_form))
+    
+        return utterances
+    
+    def get_random_samples(utterances, num_samples=3):
+        """
+        Randomly samples num_samples pairs from the list of (original, corrected) utterances.
+        Separates them into input_texts with the prompt and output_texts as corrected sentences.
+        """
+        random.seed()  # Do not fix the random seed to get different results each run
+        sampled_utterances = random.sample(utterances, num_samples)
+        input_texts = [f"Please correct the spelling: {item[0]}" for item in sampled_utterances]
+        output_texts = [item[1] for item in sampled_utterances]
+        return input_texts, output_texts
+    
+    def prepare_data_for_training(is_random):
+        """
+        Generates sentences using GPT-2 based on random words and corrects them using hanspell.
+        - Selects a random word from a predefined list.
+        - Generates a sentence based on the selected word.
+        - Corrects the generated sentence using hanspell.
+        - Saves the input-output pairs with the prompt and corrected sentence.
+        """
+        model, tokenizer, device = load_model()
+    
+        input_texts = []
+        output_texts = []
+    
+        # Predefined list of random words for sentence generation
+        random_words = [
+            "love", "climate", "exercise", "technology", "society", "music", "travel", "book", "weather", "economy",
+            "game", "education", "politics", "culture", "movie", "food", "hobby", "profession", "social", "company",
+            "philosophy", "social", "future", "science", "art", "digital", "robot", "space", "happiness", "health",
+            "social", "security", "fashion", "autonomy", "language", "social media", "development", "exploration", "environment", "value",
+            "innovation", "artificial intelligence", "information", "leadership", "responsibility", "equality", "solidarity", "fairness", "progress", "freedom",
+            "challenge", "imagination", "creativity", "collaboration", "research", "tech", "design", "career", "startup", "welfare",
+            "digitalization", "robotics", "internet", "smartphone", "technical", "strategy", "eco-friendly", "social media",
+            "branding", "interior", "autonomous driving", "blockchain", "cloud", "big data", "AI", "curriculum",
+            "programming", "data", "network", "research and development", "startup", "economics", "finance", "asset management",
+            "business", "trend", "smart city", "digital twin", "mobile", "wearable", "camera", "5G",
+            "IoT", "smart home", "healthcare", "global", "corporate social responsibility", "e-commerce", "digitalization", "e-commerce"
+        ]
+    
+        # Generate 5 sentences
+        for i in range(5):
+            # Select a random word
+            random_word = random.choice(random_words)
+    
+            # Generate a sentence starting with the selected word
+            sentence = generate_random_sentence(model, tokenizer, device, random_word)
+            # Correct the spelling
+            corrected_sentence = correct_spelling(sentence)
+    
+            # Save the input-output pair with the prompt
+            input_texts.append(f"Please correct the spelling: {sentence}")
+            output_texts.append(corrected_sentence)
+    
+        return input_texts, output_texts
+    
+    def append_to_json(input_texts, output_texts):
+        """
+        Appends the generated input_texts and output_texts to the existing JSON file.
+        - Reads the existing random_sample.json file and extends the input_texts and output_texts.
+        - Saves the updated data back to the JSON file.
+        - If the file does not exist, initializes a new JSON structure.
+        """
+        try:
+            with open(output_file, "r", encoding="utf-8") as f:
+                existing_data = json.load(f)
+        except FileNotFoundError:
+            # Initialize a new structure if the file does not exist
+            existing_data = {"input_texts": [], "output_texts": []}
+    
+        # Add new data to existing data
+        existing_data["input_texts"].extend(input_texts)
+        existing_data["output_texts"].extend(output_texts)
+    
+        # Save the appended data back to the JSON file
+        with open(output_file, "w", encoding="utf-8") as f:
+            json.dump(existing_data, f, ensure_ascii=False, indent=4)
+    
+        print(f"Randomly sampled data has been appended to {output_file}.")
+    
+    def choose_learning_method():
+        """
+        Prompts the user to select a dataset generation method and executes the corresponding data generation logic.
+        1. Generate based on the National Institute of Korean Language JSON file
+        2. Generate based on random sentence generation
+        """
+        print("Select a dataset generation method:")
+        print("1. Generate based on the National Institute of Korean Language JSON file")
+        print("2. Generate random sentences")
+    
+        choice = input("Please select a number: ")
+    
+        if choice == "1":
+            # Randomly extract (original, corrected) pairs from the existing National Institute of Korean Language JSON file
+            print("Training with the existing JSON file.")
+            utterances = load_existing_data()
+            input_texts, output_texts = get_random_samples(utterances, num_samples=10)
+            append_to_json(input_texts, output_texts)
+        elif choice == "2":
+            # Generate random sentences using GPT-2, correct them with hanspell, and save to JSON file
+            print("Training with random sentences.")
+            input_texts, output_texts = prepare_data_for_training(is_random=True)
+            append_to_json(input_texts, output_texts)
+    
+    # Main execution
+    if __name__ == "__main__":
+        choose_learning_method()
+    
+    
+    ## train_model.py File View
+    #### train_model.py
+    
+    import torch
+    from transformers import T5ForConditionalGeneration, T5Tokenizer
+    from transformers import Trainer, TrainingArguments
+    import json
+    from sklearn.model_selection import train_test_split
+    
+    # ------------------------------------------------------------
+    # This script demonstrates the process of fine-tuning a T5 model
+    # for spelling correction using a pre-trained T5 model.
+    #
+    # Main Flow:
+    # 1. Load the pre-trained T5 spelling correction model and tokenizer.
+    # 2. Load "input_texts" and "output_texts" from the prepared JSON data.
+    # 3. Preprocess the data and split it into training and validation sets.
+    # 4. Tokenize the text using the tokenizer.
+    # 5. Convert the data into PyTorch Dataset format.
+    # 6. Perform fine-tuning using Trainer.
+    # 7. Save the fine-tuned model and tokenizer after training.
+    #
+    # Each step is clearly explained with comments.
+    # ------------------------------------------------------------
+    
+    # Load the T5 model and tokenizer
+    # "j5ng/et5-typos-corrector" is a pre-fine-tuned T5 model specialized for Korean spelling correction
+    model = T5ForConditionalGeneration.from_pretrained("j5ng/et5-typos-corrector")
+    tokenizer = T5Tokenizer.from_pretrained("j5ng/et5-typos-corrector")
+    
+    # Load JSON data file
+    # This file contains data in the format {"input_texts": [...], "output_texts": [...]}
+    input_file = "./dataset/random_sample.json"
+    with open(input_file, "r", encoding="utf-8") as f:
+        data = json.load(f)
+    
+    # Separate "input_texts" and "output_texts"
+    input_texts = data["input_texts"]
+    output_texts = data["output_texts"]
+    
+    # Split into training and validation sets
+    # test_size=0.2 means 20% of the data is used for validation
+    train_df, val_df = train_test_split(list(zip(input_texts, output_texts)), test_size=0.2, random_state=42)
+    
+    # Preprocess input sentences for T5 training
+    # Prefix with "Please correct the spelling: " to indicate the task to the model
+    # Optionally, append a period '.' at the end of output sentences to maintain sentence termination
+    train_input = ["Please correct the spelling: " + item[0] for item in train_df]
+    train_output = [item[1] + "." for item in train_df]
+    
+    val_input = ["Please correct the spelling: " + item[0] for item in val_df]
+    val_output = [item[1] + "." for item in val_df]
+    
+    # Tokenize:
+    # max_length=128: limit sentence length to 128 tokens
+    # padding=True, truncation=True: apply padding and truncation as needed
+    train_encodings = tokenizer(train_input, max_length=128, padding=True, truncation=True)
+    train_labels_encodings = tokenizer(train_output, max_length=128, padding=True, truncation=True)
+    
+    val_encodings = tokenizer(val_input, max_length=128, padding=True, truncation=True)
+    val_labels_encodings = tokenizer(val_output, max_length=128, padding=True, truncation=True)
+    
+    # Define PyTorch Dataset class
+    # Converts data into the format required for model training
+    class SpellCorrectionDataset(torch.utils.data.Dataset):
+        def __init__(self, encodings, labels_encodings):
+            self.encodings = encodings
+            self.labels_encodings = labels_encodings
+    
+        def __getitem__(self, idx):
+            # Retrieve token tensors for the given index
+            item = {key: torch.tensor(val[idx]) for key, val in self.encodings.items()}
+            # Use input_ids from labels_encodings as labels
+            item["labels"] = torch.tensor(self.labels_encodings["input_ids"][idx])
+            return item
+    
+        def __len__(self):
+            return len(self.encodings["input_ids"])
+    
+    # Create training and validation datasets
+    train_dataset = SpellCorrectionDataset(train_encodings, train_labels_encodings)
+    val_dataset = SpellCorrectionDataset(val_encodings, val_labels_encodings)
+    
+    # Set up TrainingArguments
+    # Defines output directory, learning rate, batch size, number of epochs, weight decay, etc.
+    training_args = TrainingArguments(
+        output_dir="./outputs",
+        evaluation_strategy="epoch",   # Evaluate at the end of each epoch
+        learning_rate=1e-4,
+        per_device_train_batch_size=32,
+        num_train_epochs=8,
+        weight_decay=0.01,
+        save_strategy="epoch",         # Save checkpoints at the end of each epoch
+        metric_for_best_model="eval_loss", 
+        greater_is_better=False        # Lower eval_loss is better
+    )
+    
+    # Initialize Trainer
+    trainer = Trainer(
+        model=model,
+        args=training_args,
+        train_dataset=train_dataset,
+        eval_dataset=val_dataset,
+    )
+    
+    # Start model fine-tuning
+    trainer.train()
+    
+    # Save the fine-tuned model and tokenizer
+    model.save_pretrained("./fine_tuned_model", safe_serialization=False)
+    tokenizer.save_pretrained("./fine_tuned_model")
+    
+    # Save model weights in PyTorch format
+    torch.save(model.state_dict(), './fine_tuned_model/pytorch_model.bin')
+    
+    print("Training complete and model saved.")
+    
+    
+    ## app.py File View
+    #### app.py
+    
+    
+    from flask import Flask, render_template, request, jsonify
+    import torch
+    from transformers import T5ForConditionalGeneration, T5Tokenizer
+    from hanspell import spell_checker  # Using Hanspell
+    
+    # ------------------------------------------------------------
+    # This Flask application provides three spelling correction methods:
+    # 1. Spelling correction using an untuned model (untuned_model)
+    # 2. Spelling correction using a fine-tuned model (fine_tuned_model)
+    # 3. Spelling correction using the Hanspell package
+    #
+    # Users can input text on the web interface (index.html),
+    # select the desired checker (untuned, tuned, hanspell),
+    # and receive spelling corrections.
+    #
+    # Main Logic:
+    # - '/' Route: Renders index.html (main page)
+    # - '/check' Route: Handles POST requests to receive text and checker type,
+    #                     performs spelling correction, and returns results in JSON format.
+    #
+    # After running the Flask app, users can access the web page at localhost:5000
+    # to input text and view corrected results.
+    # ------------------------------------------------------------
+    
+    app = Flask(__name__)
+    
+    # Paths to the fine-tuned model and tokenizer
+    model_path = './fine_tuned_model'
+    tokenizer_path = './fine_tuned_model'
+    
+    # Load the untuned model
+    # "j5ng/et5-typos-corrector" is the default Korean spelling correction T5 model
+    untuned_model = T5ForConditionalGeneration.from_pretrained("j5ng/et5-typos-corrector")
+    untuned_tokenizer = T5Tokenizer.from_pretrained("j5ng/et5-typos-corrector")
+    
+    # Load the fine-tuned model
+    fine_tuned_model = T5ForConditionalGeneration.from_pretrained(model_path)
+    fine_tuned_tokenizer = T5Tokenizer.from_pretrained(tokenizer_path)
+    
+    # Check if GPU is available and set device accordingly
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    untuned_model.to(device)
+    fine_tuned_model.to(device)
+    
+    @app.route('/')
+    def index():
+        """
+        Renders the main page: returns index.html
+        Provides an interface for users to input text and select the checker method
+        """
+        return render_template('index.html')
+    
+    @app.route('/check', methods=['POST'])
+    def check_spelling():
+        """
+        Endpoint to handle spelling correction requests.
+        Receives the input text and selected checker type from the user,
+        performs spelling correction using the chosen method,
+        and returns the results in JSON format.
+        """
+        text = request.form.get('text')  # Text entered by the user
+        checker_type = request.form.get('checker')  # Selected checker type (untuned, tuned, hanspell)
+    
+        if not text:
+            return jsonify({'error': 'Please enter text.'})
+    
+        # Perform correction based on the selected method
+        if checker_type == 'model_untuned':
+            # Spelling correction using the untuned model
+            input_encoding = untuned_tokenizer("Please correct the spelling: " + text, return_tensors="pt").to(device)
+            input_ids = input_encoding.input_ids
+            attention_mask = input_encoding.attention_mask
+    
+            # Generate corrected output using the T5 model
+            output_encoding = untuned_model.generate(
+                input_ids=input_ids,
+                attention_mask=attention_mask,
+                max_length=128,
+                num_beams=5,
+                early_stopping=True,
+            )
+            output_text = untuned_tokenizer.decode(output_encoding[0], skip_special_tokens=True)
+    
             return jsonify({
                 'original_text': text,
-                'checked_text': corrected_text
+                'checked_text': output_text
             })
-        except Exception as e:
+    
+        elif checker_type == 'model_tuned':
+            # Spelling correction using the fine-tuned model
+            input_encoding = fine_tuned_tokenizer("Please correct the spelling: " + text, return_tensors="pt").to(device)
+            input_ids = input_encoding.input_ids
+            attention_mask = input_encoding.attention_mask
+    
+            # Generate corrected output using the fine-tuned T5 model
+            output_encoding = fine_tuned_model.generate(
+                input_ids=input_ids,
+                attention_mask=attention_mask,
+                max_length=128,
+                num_beams=5,
+                early_stopping=True,
+            )
+            output_text = fine_tuned_tokenizer.decode(output_encoding[0], skip_special_tokens=True)
+    
             return jsonify({
-                'error': f'Error occurred during Hanspell processing: {str(e)}'
+                'original_text': text,
+                'checked_text': output_text
             })
-
-    else:
-        # Return error if an unsupported checker type is selected
-        return jsonify({'error': 'Invalid checker selection.'})
-
-if __name__ == '__main__':
-    # Run the development server (debug mode)
-    # For actual deployment, use a WSGI server (unfortunately, couldn't proceed due to cost issues)
-    app.run(debug=True)
-
-
-## index.html File View
-#### index.html
-<!DOCTYPE html>
-<html lang="en">
-    <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Spelling Checker</title>
-    <style>
-        /* Basic page styling */
-        body {
-            font-family: Arial, sans-serif; /* Set default font */
-            display: flex; /* Use flexbox layout */
-            justify-content: center; /* Center horizontally */
-            align-items: center; /* Center vertically */
-            height: 100vh; /* Use full viewport height */
-            margin: 0; /* Remove default margin */
-            background-color: #f4f4f4; /* Set background color */
-            transition: background-color 0.3s ease, color 0.3s ease; /* Transition for background and text color */
-            background-image: url('your-image-path.jpg'); /* Set background image path */
-            background-size: cover; /* Adjust background image size to cover */
-            background-position: center; /* Center the background image */
-            flex-direction: column; /* Arrange flex items vertically */
-        }
-
-        /* Central container styling */
-        .container {
-            text-align: center; /* Center text */
-            background-color: rgba(255, 255, 255, 0.8); /* Semi-transparent white background */
-            padding: 30px; /* Internal padding */
-            border-radius: 10px; /* Rounded corners */
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1); /* Shadow effect for depth */
-            width: 100%; /* Full width */
-            max-width: 500px; /* Maximum width of 500px */
-            position: relative; /* Relative positioning */
-            transition: background-color 0.3s ease, box-shadow 0.3s ease; /* Transition for background and shadow */
-        }
-
-        /* Text input area styling */
-        textarea {
-            width: 100%; /* Full width */
-            height: 100px; /* Height of 100px */
-            padding: 10px; /* Internal padding */
-            margin-bottom: 20px; /* Bottom margin */
-            border-radius: 5px; /* Rounded corners */
-            border: 1px solid #ccc; /* Gray border */
-            font-size: 16px; /* Font size */
-            transition: border-color 0.3s ease; /* Transition for border color */
-        }
-
-        /* Submit button styling */
-        button {
-            padding: 10px 20px; /* Internal padding */
-            background-color: #4CAF50; /* Green background */
-            color: white; /* White text */
-            border: none; /* Remove border */
-            border-radius: 5px; /* Rounded corners */
-            cursor: pointer; /* Pointer cursor on hover */
-            font-size: 16px; /* Font size */
-            transition: background-color 0.3s ease; /* Transition for background color */
-        }
-
-        /* Change button color on hover */
-        button:hover {
-            background-color: #45a049; /* Darker green on hover */
-        }
-
-        /* Spelling correction result area styling */
-        .result {
-            margin-top: 20px; /* Top margin */
-            text-align: center; /* Center text */
-            background-color: #e8f5e9; /* Light green background */
-            padding: 15px; /* Internal padding */
-            border-radius: 5px; /* Rounded corners */
-            border: 1px solid #4CAF50; /* Green border */
-            white-space: pre-wrap; /* Preserve whitespace and line breaks */
-            word-wrap: break-word; /* Wrap long words */
-            display: none; /* Initially hidden */
-            transition: background-color 0.3s ease, color 0.3s ease; /* Transition for background and text color */
-        }
-
-        /* Styling for each text block inside the result area */
-        .result div {
-            margin-bottom: 10px; /* Bottom margin */
-            font-size: 18px; /* Font size */
-            text-align: center; /* Center text */
-        }
-
-        /* Dark mode styling */
-        body.dark-mode {
-            background-color: #121212; /* Dark background color */
-            color: white; /* White text */
-        }
-
-        .container.dark-mode {
-            background-color: #333; /* Dark background color */
-            box-shadow: 0 4px 8px rgba(255, 255, 255, 0.1); /* Dark shadow color */
-        }
-
-        textarea.dark-mode {
-            background-color: #555; /* Dark text input background */
-            border: 1px solid #777; /* Dark border color */
-            color: white; /* White text */
-        }
-
-        button.dark-mode {
-            background-color: #333; /* Dark button background */
-        }
-
-        .result.dark-mode {
-            background-color: #444; /* Dark result background */
-            color: white; /* White text */
-            border: 1px solid #777; /* Dark border color */
-        }
-
-        /* Dark mode toggle button styling */
-        #toggle-theme {
-            position: fixed; /* Fixed position */
-            bottom: 20px; /* 20px from the bottom */
-            left: 50%; /* Center horizontally */
-            transform: translateX(-50%); /* Adjust for exact centering */
-            padding: 10px 20px; /* Internal padding */
-            background-color: #4CAF50; /* Green background */
-            color: white; /* White text */
-            border: none; /* Remove border */
-            border-radius: 5px; /* Rounded corners */
-            cursor: pointer; /* Pointer cursor on hover */
-            font-size: 16px; /* Font size */
-            transition: background-color 0.3s ease; /* Transition for background color */
-        }
-
-        /* Change toggle button color on hover */
-        #toggle-theme:hover {
-            background-color: #45a049; /* Darker green on hover */
-        }
-
-        /* Adjust logo image sizes */
-        #logo1, #logo2 {
-            width: 300px; /* Width of 300px */
-            height: auto; /* Automatic height */
-            margin-bottom: 20px; /* Bottom margin */
-        }
-
-        /* Hide radio buttons */
-        input[type="radio"] {
-            display: none; /* Hide default radio buttons */
-        }
-
-        /* Styling for the checked radio button's label before pseudo-element */
-        input[type="radio"]:checked + label::before {
-            content: "🤖"; /* Display robot icon */
-            display: inline-block; /* Display as inline-block */
-            width: 30px; /* Width of 30px */
-            height: 30px; /* Height of 30px */
-            font-size: 30px; /* Font size */
-            margin-right: 10px; /* Right margin */
-            cursor: pointer; /* Pointer cursor */
-        }
-
-        /* Styling for the unchecked radio button's label before pseudo-element */
-        input[type="radio"]:not(:checked) + label::before {
-            content: "⚙️"; /* Display gear icon */
-            display: inline-block; /* Display as inline-block */
-            width: 30px; /* Width of 30px */
-            height: 30px; /* Height of 30px */
-            font-size: 30px; /* Font size */
-            margin-right: 10px; /* Right margin */
-            cursor: pointer; /* Pointer cursor */
-        }
-
-        /* Label text styling */
-        label {
-            display: inline-block; /* Display as inline-block */
-            margin: 5px; /* Margin */
-            font-size: 18px; /* Font size */
-        }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <!-- Top logo image -->
-        <img id="logo1" src="{{ url_for('static', filename='logo.png') }}" alt="Logo1"><br>
-        
-        <!-- Page title -->
-        <h1>Spelling Checker</h1>
-        
-        <!-- Spelling checker form -->
-        <form id="spellcheck-form" action="/check" method="post">
-            <!-- Text input area -->
-            <textarea id="text-input" name="text" placeholder="Please enter text here"></textarea><br>
-            
-            <!-- Checker selection radio buttons -->
-            <label>Select Checker:</label><br>
-            <!-- Hanspell checker radio button -->
-            <input type="radio" id="hanspell" name="checker" value="hanspell" checked>
-            <label for="hanspell">Hanspell</label><br>
-            <!-- Untuned model-based checker radio button -->
-            <input type="radio" id="model_untuned" name="checker" value="model_untuned">
-            <label for="model_untuned">Model-Based Spelling Checker (Untuned Model)</label><br>
-            <!-- Fine-tuned model-based checker radio button -->
-            <input type="radio" id="model_tuned" name="checker" value="model_tuned">
-            <label for="model_tuned">Model-Based Spelling Checker (Fine-Tuned Model)</label><br>
-            
-            <!-- Submit button -->
-            <button type="submit">Check Spelling</button>
-        </form>
-        
-        <!-- Spelling correction result display area -->
-        <div id="result" class="result">
-            <div id="original-text"></div> <!-- Display original text -->
-            <div id="checked-text"></div> <!-- Display corrected text -->
-        </div> <!-- End of result area -->
-        
-        <!-- Bottom logo image -->
-        <img id="logo2" src="{{ url_for('static', filename='logo2.png') }}" alt="Logo2"><br>
-    </div>
     
-    <!-- Dark mode toggle button -->
-    <button id="toggle-theme">Toggle Dark Mode</button>
+        elif checker_type == 'hanspell':
+            # Spelling correction using the Hanspell library
+            try:
+                corrected_text = spell_checker.check(text).checked
+                return jsonify({
+                    'original_text': text,
+                    'checked_text': corrected_text
+                })
+            except Exception as e:
+                return jsonify({
+                    'error': f'Error occurred during Hanspell processing: {str(e)}'
+                })
     
-    <script>
-        // JavaScript Code Section
-
-        // Select form and result elements
-        const form = document.getElementById('spellcheck-form'); // Spelling checker form
-        const resultDiv = document.getElementById('result'); // Result display area
-        const originalTextDiv = document.getElementById('original-text'); // Original text display div
-        const checkedTextDiv = document.getElementById('checked-text'); // Corrected text display div
-        const textInput = document.getElementById('text-input'); // Text input area
-        const toggleThemeButton = document.getElementById('toggle-theme'); // Dark mode toggle button
-
-        // Dark mode toggle functionality
-        toggleThemeButton.addEventListener('click', function() {
-            // Toggle 'dark-mode' class on the entire page
-            document.body.classList.toggle('dark-mode');
-            // Toggle 'dark-mode' class on the container
-            document.querySelector('.container').classList.toggle('dark-mode');
-            // Toggle 'dark-mode' class on the text input area
-            textInput.classList.toggle('dark-mode');
-            // Toggle 'dark-mode' class on all buttons
-            document.querySelectorAll('button').forEach(function(btn) {
-                btn.classList.toggle('dark-mode');
+        else:
+            # Return error if an unsupported checker type is selected
+            return jsonify({'error': 'Invalid checker selection.'})
+    
+    if __name__ == '__main__':
+        # Run the development server (debug mode)
+        # For actual deployment, use a WSGI server (unfortunately, couldn't proceed due to cost issues)
+        app.run(debug=True)
+    
+    
+    ## index.html File View
+    #### index.html
+    <!DOCTYPE html>
+    <html lang="en">
+        <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>Spelling Checker</title>
+        <style>
+            /* Basic page styling */
+            body {
+                font-family: Arial, sans-serif; /* Set default font */
+                display: flex; /* Use flexbox layout */
+                justify-content: center; /* Center horizontally */
+                align-items: center; /* Center vertically */
+                height: 100vh; /* Use full viewport height */
+                margin: 0; /* Remove default margin */
+                background-color: #f4f4f4; /* Set background color */
+                transition: background-color 0.3s ease, color 0.3s ease; /* Transition for background and text color */
+                background-image: url('your-image-path.jpg'); /* Set background image path */
+                background-size: cover; /* Adjust background image size to cover */
+                background-position: center; /* Center the background image */
+                flex-direction: column; /* Arrange flex items vertically */
+            }
+    
+            /* Central container styling */
+            .container {
+                text-align: center; /* Center text */
+                background-color: rgba(255, 255, 255, 0.8); /* Semi-transparent white background */
+                padding: 30px; /* Internal padding */
+                border-radius: 10px; /* Rounded corners */
+                box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1); /* Shadow effect for depth */
+                width: 100%; /* Full width */
+                max-width: 500px; /* Maximum width of 500px */
+                position: relative; /* Relative positioning */
+                transition: background-color 0.3s ease, box-shadow 0.3s ease; /* Transition for background and shadow */
+            }
+    
+            /* Text input area styling */
+            textarea {
+                width: 100%; /* Full width */
+                height: 100px; /* Height of 100px */
+                padding: 10px; /* Internal padding */
+                margin-bottom: 20px; /* Bottom margin */
+                border-radius: 5px; /* Rounded corners */
+                border: 1px solid #ccc; /* Gray border */
+                font-size: 16px; /* Font size */
+                transition: border-color 0.3s ease; /* Transition for border color */
+            }
+    
+            /* Submit button styling */
+            button {
+                padding: 10px 20px; /* Internal padding */
+                background-color: #4CAF50; /* Green background */
+                color: white; /* White text */
+                border: none; /* Remove border */
+                border-radius: 5px; /* Rounded corners */
+                cursor: pointer; /* Pointer cursor on hover */
+                font-size: 16px; /* Font size */
+                transition: background-color 0.3s ease; /* Transition for background color */
+            }
+    
+            /* Change button color on hover */
+            button:hover {
+                background-color: #45a049; /* Darker green on hover */
+            }
+    
+            /* Spelling correction result area styling */
+            .result {
+                margin-top: 20px; /* Top margin */
+                text-align: center; /* Center text */
+                background-color: #e8f5e9; /* Light green background */
+                padding: 15px; /* Internal padding */
+                border-radius: 5px; /* Rounded corners */
+                border: 1px solid #4CAF50; /* Green border */
+                white-space: pre-wrap; /* Preserve whitespace and line breaks */
+                word-wrap: break-word; /* Wrap long words */
+                display: none; /* Initially hidden */
+                transition: background-color 0.3s ease, color 0.3s ease; /* Transition for background and text color */
+            }
+    
+            /* Styling for each text block inside the result area */
+            .result div {
+                margin-bottom: 10px; /* Bottom margin */
+                font-size: 18px; /* Font size */
+                text-align: center; /* Center text */
+            }
+    
+            /* Dark mode styling */
+            body.dark-mode {
+                background-color: #121212; /* Dark background color */
+                color: white; /* White text */
+            }
+    
+            .container.dark-mode {
+                background-color: #333; /* Dark background color */
+                box-shadow: 0 4px 8px rgba(255, 255, 255, 0.1); /* Dark shadow color */
+            }
+    
+            textarea.dark-mode {
+                background-color: #555; /* Dark text input background */
+                border: 1px solid #777; /* Dark border color */
+                color: white; /* White text */
+            }
+    
+            button.dark-mode {
+                background-color: #333; /* Dark button background */
+            }
+    
+            .result.dark-mode {
+                background-color: #444; /* Dark result background */
+                color: white; /* White text */
+                border: 1px solid #777; /* Dark border color */
+            }
+    
+            /* Dark mode toggle button styling */
+            #toggle-theme {
+                position: fixed; /* Fixed position */
+                bottom: 20px; /* 20px from the bottom */
+                left: 50%; /* Center horizontally */
+                transform: translateX(-50%); /* Adjust for exact centering */
+                padding: 10px 20px; /* Internal padding */
+                background-color: #4CAF50; /* Green background */
+                color: white; /* White text */
+                border: none; /* Remove border */
+                border-radius: 5px; /* Rounded corners */
+                cursor: pointer; /* Pointer cursor on hover */
+                font-size: 16px; /* Font size */
+                transition: background-color 0.3s ease; /* Transition for background color */
+            }
+    
+            /* Change toggle button color on hover */
+            #toggle-theme:hover {
+                background-color: #45a049; /* Darker green on hover */
+            }
+    
+            /* Adjust logo image sizes */
+            #logo1, #logo2 {
+                width: 300px; /* Width of 300px */
+                height: auto; /* Automatic height */
+                margin-bottom: 20px; /* Bottom margin */
+            }
+    
+            /* Hide radio buttons */
+            input[type="radio"] {
+                display: none; /* Hide default radio buttons */
+            }
+    
+            /* Styling for the checked radio button's label before pseudo-element */
+            input[type="radio"]:checked + label::before {
+                content: "🤖"; /* Display robot icon */
+                display: inline-block; /* Display as inline-block */
+                width: 30px; /* Width of 30px */
+                height: 30px; /* Height of 30px */
+                font-size: 30px; /* Font size */
+                margin-right: 10px; /* Right margin */
+                cursor: pointer; /* Pointer cursor */
+            }
+    
+            /* Styling for the unchecked radio button's label before pseudo-element */
+            input[type="radio"]:not(:checked) + label::before {
+                content: "⚙️"; /* Display gear icon */
+                display: inline-block; /* Display as inline-block */
+                width: 30px; /* Width of 30px */
+                height: 30px; /* Height of 30px */
+                font-size: 30px; /* Font size */
+                margin-right: 10px; /* Right margin */
+                cursor: pointer; /* Pointer cursor */
+            }
+    
+            /* Label text styling */
+            label {
+                display: inline-block; /* Display as inline-block */
+                margin: 5px; /* Margin */
+                font-size: 18px; /* Font size */
+            }
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <!-- Top logo image -->
+            <img id="logo1" src="{{ url_for('static', filename='logo.png') }}" alt="Logo1"><br>
+            
+            <!-- Page title -->
+            <h1>Spelling Checker</h1>
+            
+            <!-- Spelling checker form -->
+            <form id="spellcheck-form" action="/check" method="post">
+                <!-- Text input area -->
+                <textarea id="text-input" name="text" placeholder="Please enter text here"></textarea><br>
+                
+                <!-- Checker selection radio buttons -->
+                <label>Select Checker:</label><br>
+                <!-- Hanspell checker radio button -->
+                <input type="radio" id="hanspell" name="checker" value="hanspell" checked>
+                <label for="hanspell">Hanspell</label><br>
+                <!-- Untuned model-based checker radio button -->
+                <input type="radio" id="model_untuned" name="checker" value="model_untuned">
+                <label for="model_untuned">Model-Based Spelling Checker (Untuned Model)</label><br>
+                <!-- Fine-tuned model-based checker radio button -->
+                <input type="radio" id="model_tuned" name="checker" value="model_tuned">
+                <label for="model_tuned">Model-Based Spelling Checker (Fine-Tuned Model)</label><br>
+                
+                <!-- Submit button -->
+                <button type="submit">Check Spelling</button>
+            </form>
+            
+            <!-- Spelling correction result display area -->
+            <div id="result" class="result">
+                <div id="original-text"></div> <!-- Display original text -->
+                <div id="checked-text"></div> <!-- Display corrected text -->
+            </div> <!-- End of result area -->
+            
+            <!-- Bottom logo image -->
+            <img id="logo2" src="{{ url_for('static', filename='logo2.png') }}" alt="Logo2"><br>
+        </div>
+        
+        <!-- Dark mode toggle button -->
+        <button id="toggle-theme">Toggle Dark Mode</button>
+        
+        <script>
+            // JavaScript Code Section
+    
+            // Select form and result elements
+            const form = document.getElementById('spellcheck-form'); // Spelling checker form
+            const resultDiv = document.getElementById('result'); // Result display area
+            const originalTextDiv = document.getElementById('original-text'); // Original text display div
+            const checkedTextDiv = document.getElementById('checked-text'); // Corrected text display div
+            const textInput = document.getElementById('text-input'); // Text input area
+            const toggleThemeButton = document.getElementById('toggle-theme'); // Dark mode toggle button
+    
+            // Dark mode toggle functionality
+            toggleThemeButton.addEventListener('click', function() {
+                // Toggle 'dark-mode' class on the entire page
+                document.body.classList.toggle('dark-mode');
+                // Toggle 'dark-mode' class on the container
+                document.querySelector('.container').classList.toggle('dark-mode');
+                // Toggle 'dark-mode' class on the text input area
+                textInput.classList.toggle('dark-mode');
+                // Toggle 'dark-mode' class on all buttons
+                document.querySelectorAll('button').forEach(function(btn) {
+                    btn.classList.toggle('dark-mode');
+                });
+                // Toggle 'dark-mode' class on the result display area
+                resultDiv.classList.toggle('dark-mode');
             });
-            // Toggle 'dark-mode' class on the result display area
-            resultDiv.classList.toggle('dark-mode');
-        });
-
-        // Spelling checker form submission event handler
-        form.addEventListener('submit', function(event) {
-            event.preventDefault(); // Prevent default form submission behavior (page refresh)
-
-            // Collect form data into a FormData object
-            const formData = new FormData(form);
-            const checkerType = formData.get('checker'); // Get the selected checker type
-
-            // Send POST request to the server
-            fetch('/check', { // Request to the server's '/check' endpoint
-                method: 'POST', // Use HTTP POST method
-                body: formData // Send form data
-            })
-            .then(response => response.json()) // Parse the response as JSON
-            .then(data => {
-                if (data.error) {
-                    // If the server returned an error message
-                    resultDiv.innerHTML = `<div>${data.error}</div>`; // Display the error message
-                } else {
-                    // If spelling correction was successful
-                    originalTextDiv.textContent = "Original Sentence: " + data.original_text; // Display original text
-                    checkedTextDiv.textContent = "Corrected Sentence: " + data.checked_text; // Display corrected text
+    
+            // Spelling checker form submission event handler
+            form.addEventListener('submit', function(event) {
+                event.preventDefault(); // Prevent default form submission behavior (page refresh)
+    
+                // Collect form data into a FormData object
+                const formData = new FormData(form);
+                const checkerType = formData.get('checker'); // Get the selected checker type
+    
+                // Send POST request to the server
+                fetch('/check', { // Request to the server's '/check' endpoint
+                    method: 'POST', // Use HTTP POST method
+                    body: formData // Send form data
+                })
+                .then(response => response.json()) // Parse the response as JSON
+                .then(data => {
+                    if (data.error) {
+                        // If the server returned an error message
+                        resultDiv.innerHTML = `<div>${data.error}</div>`; // Display the error message
+                    } else {
+                        // If spelling correction was successful
+                        originalTextDiv.textContent = "Original Sentence: " + data.original_text; // Display original text
+                        checkedTextDiv.textContent = "Corrected Sentence: " + data.checked_text; // Display corrected text
+                        resultDiv.style.display = 'block'; // Show the result area
+                    }
+                })
+                .catch(error => {
+                    // If a network error or other exception occurred
+                    resultDiv.innerHTML = "<div>An error occurred. Please try again.</div>"; // Display error message
                     resultDiv.style.display = 'block'; // Show the result area
-                }
-            })
-            .catch(error => {
-                // If a network error or other exception occurred
-                resultDiv.innerHTML = "<div>An error occurred. Please try again.</div>"; // Display error message
-                resultDiv.style.display = 'block'; // Show the result area
+                });
             });
-        });
-    </script>
-</body>
-</html>
+        </script>
+    </body>
+    </html>

@@ -312,6 +312,9 @@ This project successfully trained a Korean spelling correction model and impleme
 
 
 
+## 9. Code Explanation
+## random_sample.py File View
+#### random_sample.py
 
 import json
 import random
@@ -537,7 +540,8 @@ if __name__ == "__main__":
     choose_learning_method()
 
 
-
+## train_model.py File View
+#### train_model.py
 
 import torch
 from transformers import T5ForConditionalGeneration, T5Tokenizer
@@ -654,6 +658,8 @@ torch.save(model.state_dict(), './fine_tuned_model/pytorch_model.bin')
 print("Training complete and model saved.")
 
 
+## app.py File View
+#### app.py
 
 
 from flask import Flask, render_template, request, jsonify

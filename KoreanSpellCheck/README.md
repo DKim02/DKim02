@@ -869,7 +869,7 @@ index.html: 사용자에게 텍스트 입력란과 교정 결과를 출력하는
   
 
 
-	<!DOCTYPE html>
+ <!DOCTYPE html>
 	<html lang="ko">
 	<head>
 	    <meta charset="UTF-8">

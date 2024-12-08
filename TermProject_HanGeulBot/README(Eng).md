@@ -540,8 +540,8 @@ This project successfully trained a Korean spelling correction model and impleme
         choose_learning_method()
     
     
-    ## train_model.py File View
-    #### train_model.py
+## train_model.py File View
+#### train_model.py
     
     import torch
     from transformers import T5ForConditionalGeneration, T5Tokenizer
@@ -658,8 +658,8 @@ This project successfully trained a Korean spelling correction model and impleme
     print("Training complete and model saved.")
     
     
-    ## app.py File View
-    #### app.py
+## app.py File View
+#### app.py
     
     
     from flask import Flask, render_template, request, jsonify
@@ -794,8 +794,9 @@ This project successfully trained a Korean spelling correction model and impleme
         app.run(debug=True)
     
     
-    ## index.html File View
-    #### index.html
+## index.html File View
+#### index.html
+
     <!DOCTYPE html>
     <html lang="en">
         <head>

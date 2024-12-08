@@ -125,13 +125,13 @@
 
 파일구조는 [Github](https://github.com/DKim02/DKim02/tree/main/KoreanSpellCheck)를 참고해주시길 바랍니다.
 
-코드에 대한 자세한 해설은 [9.코드 설명](#코드-설명)을 참고 해주시길 바랍니다.
+각각의 코드에 대한 자세한 해설은 아래를 참고 해주시길 바랍니다.
 
-[random_sample.py 파일 보기](#random_sample.py-파일-보기)
+[random_sample.py 파일 보기](#random_samplepy-파일-보기)
 
-[train_model.py 파일 보기](#train_model.py-파일-보기)
+[train_model.py 파일 보기](#train_modelpy-파일-보기)
 
-[app.py 파일 보기](#app.py-파일-보기)
+[app.py 파일 보기](#apppy-파일-보기)
 
 [index.html 파일 보기](#indexhtml-파일-보기)
 
@@ -696,7 +696,7 @@ index.html: 사용자에게 텍스트 입력란과 교정 결과를 출력하는
 	
 	print("훈련 완료 및 모델 저장 완료")
 	
-
+## index.html 파일 보기	
 ## app.py 파일 보기
 #### app.py
 	from flask import Flask, render_template, request, jsonify

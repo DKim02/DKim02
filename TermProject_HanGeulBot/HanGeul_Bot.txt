@@ -1,0 +1,60 @@
+HanGeul_Bot/
+│
+├── spell_check_external.py   # 외부 맞춤법 검사기(실패 했지만 일단 보류)
+├── app.py                    # Flask 웹 서버 실행 코드
+├── train_model.py            # 모델 훈련 코드
+├── random_sample.py          # 훈련 데이터셋 생성 코드
+│
+├── README.md				#프로젝트 설명 파일
+│
+├── templates/
+│   └── index.html            # 웹 페이지 HTML 파일
+│
+├── static/
+│   └── logo.png             # 웹에 사용된 이미지(상단)
+│   └── logo2.png			# 웹에 사용된 이미지(하단)
+│
+│
+├── dataset/
+│   └── random_sample.json    	# 훈련용 데이터셋(train_model.py를 통해서 생성이 됨)
+│   └── MXEC2202210100.json 	# 맞춤법 교정 말뭉치 (실제로는 있으나 이걸 공개로 하는 것은 법적 문제가 있어 github에는 올라가지 않음. 대신 설명서와 다운 방법 제공)
+│   └── 국립국어원 맞춤법 교정 말뭉치 2022 설명.pdf		# 다운링크: https://kli.korean.go.kr/corpus/main/requestMain.do?lang=ko#none (회원가입 및 승인 필요)
+│
+├── fine_tuned_model/		# 기존 모델은 "https://huggingface.co/j5ng/et5-typos-corrector"으로 위의 ET5_model의 파인튜닝된 형태이다. 여기에 추가로 파인튜닝을 시켜 맞춤법 검사기의 성능을 더욱 강화시킴
+│   └── config.json			# 파인튜닝된 언어모델의 구조 정보를 담고 있는 파일
+│   └── pytorch_model.bin		# 언어모델 weight를 저장한 파일 
+│   └── spiece.model			# vocab 모델 파일
+│   └── tokenizer_config.json		# 토크나이저 구성 정보 파일 
+│   └── generation_config.json
+│   └── special_tokens_map.json
+│
+├── hanspell/					#hanspell모듈을 사용하기위한 폴더 (https://github.com/ssut/py-hanspell/tree/master)
+│   └── config.json			# 파인튜닝된 언어모델의 구조 정보를 담고 있는 파일
+│   └── LICENSE.txt			#라이센스 파일
+│   └── pytorch_model.bin		# 언어모델 weight를 저장한 파일 
+│   └── spiece.model			# vocab 모델 파일
+│   └── tokenizer_config.json		# 토크나이저 구성 정보 파일 
+│   └── generation_config.json
+│   └── special_tokens_map.json
+│
+├── ET5_model/			#https://aiopen.etri.re.kr/et5Model에서 모델을 다운 받을 수 있으나 회원가입과 승인 필요(법적인 문제로 github에는 올라가지 않을 것)
+│   └── config.json			
+│   └── finetune-t5-ynat-code.tar.gz
+│   └── LICENSE.txt			
+│   └── pytorch_model.bin		
+│   └── README.txt			
+│   └── spiece.model			
+│   └── tokenizer_config.json		
+│
+├── d0c0df48bf2b2c9350dd855021a5b216f560c0c7/			#KoGPT2모델 폴더 (https://github.com/SKT-AI/KoGPT2), 원래는 https://huggingface.co/skt/kogpt2-base-v2의 설명처럼 로컬로 쓸 필요가 없는데, 오류가 계속 발생해서 로컬로 설치함
+│   └── .gitattributes
+│   └── config.json		
+│   └── flax_model.msgpack
+│   └── generation_config.json		
+│   └── model.safetensors	
+│   └── pytorch_model.bin
+│   └── README.md
+│   └── special_tokens_map.json
+│   └── tokenizer.json
+│   └── tokenizer_config.json
+

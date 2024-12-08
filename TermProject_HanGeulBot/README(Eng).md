@@ -156,7 +156,6 @@ Users can directly add parts they wish to improve into the dataset and fine-tune
 
 ### **Part 4: Model Training (and Fine-Tuning), Web Application**
 
-```markdown
 ## 3.2 Model Training (and Fine-Tuning)
 In this project, the ET5 model is used to train the spelling correction model. However, due to time and computer performance limitations, instead of training the ET5 model from scratch, the `et5-typos-corrector` model was used for training. This model is already fine-tuned on a spelling correction-specialized dataset and was used to save time by loading it directly. (Ultimately, the `et5-typos-corrector` was trained on the National Institute of Korean Language's dataset to shorten training time.)
 

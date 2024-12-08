@@ -16,6 +16,8 @@
 - [8. License](#8-license)
 - [9. Code Explanation](#9-code-explanation)
 
+
+
 ## 0. Usage
 #### 1. Download all files of KoreanSpellCheck.
 
@@ -56,40 +58,7 @@
 
 * * *
 
-#### 7. User adds awkward sentences directly to the dataset.
-![](./사진모음/4.png)
 
-* * *
-
-#### 8. When running `random_sample.py`, `random_sample.json` is generated (Although many warnings appear, it does not affect operation).
-![](./사진모음/8.png)
-![](./사진모음/9.png)
-
-
-##### This warning occurs because the attention mask and Pad Token ID are not explicitly set.
-##### However, in Hugging Face's transformers library, if padding is included in the input, it can automatically handle these values.
-##### In other words, warnings appear, but it operates normally.
-
-* * *
-
-#### 9. Training the model.
-![](./사진모음/10.png)
-
-* * *
-
-#### 10. Verify performance improvement of the fine-tuned model.
-![](./사진모음/3.png)
-
-##### In the fine-tuned spelling checker model, enter "학우 여러분 남은 기말고사 끝까지 화이팅 해서 유종애미를 거둬주세요 ㅎㅎ".
-##### Corrected Sentence: "학우 여러분 남은 기말고사 끝까지 파이팅 해서 유종의 미를 거둬 주세요 ㅎㅎ."
-
-##### By setting up a server to create a participatory spelling checker, better correction accuracy is expected.
-
-##### Although it is still insufficient, ...
-
-### It can be seen as the beginning of a Wikipedia (or NamuWiki, etc.) for the spelling checker. Haha.
-
-* * *
 
 ## 1. Project Overview
 This project aims to train a Korean spelling correction model and develop a web application that allows users to perform real-time spelling corrections. The system automatically detects and corrects spelling errors in user-inputted text and provides immediate confirmation through a web interface. This system combines a Flask-based web server with a PyTorch-based spelling correction model to enhance performance.
@@ -181,23 +150,32 @@ Users can directly add parts they wish to improve into the dataset and fine-tune
 }
 
 
+
+
 ---
 
-**Part 8: Model Training (and Fine-Tuning)**
+### **Part 4: Model Training (and Fine-Tuning), Web Application**
 
 ```markdown
 ## 3.2 Model Training (and Fine-Tuning)
 In this project, the ET5 model is used to train the spelling correction model. However, due to time and computer performance limitations, instead of training the ET5 model from scratch, the `et5-typos-corrector` model was used for training. This model is already fine-tuned on a spelling correction-specialized dataset and was used to save time by loading it directly. (Ultimately, the `et5-typos-corrector` was trained on the National Institute of Korean Language's dataset to shorten training time.)
 
-[et5-typos-corrector](https://huggingface.co/j5ng/et5-typos-corrector)
+[et5-typos-corrector](https://huggingface.co/j5ng/et5-typos-corrector)  
 You can refer to this link for a detailed explanation. (The ET5 PLM model was trained on the dataset provided by the National Institute of Korean Language.)
 
 The fine-tuning process was carried out as follows:
 
-#### 1. Loading the Existing Model: Load and use the HuggingFace-provided `et5-typos-corrector` model.
-#### 2. Loading the Dataset: Load the `random_sample.json` file prepared earlier as the training data.
-#### 3. Fine-Tuning: Perform additional training using `train_model.py` with the new dataset to improve performance.
-#### 4. Saving the Model: After fine-tuning, save the fine-tuned model in the `fine_tuned_model` folder for subsequent tasks.
+#### 1. Loading the Existing Model
+Load and use the HuggingFace-provided `et5-typos-corrector` model.
+
+#### 2. Loading the Dataset
+Load the `random_sample.json` file prepared earlier as the training data.
+
+#### 3. Fine-Tuning
+Perform additional training using `train_model.py` with the new dataset to improve performance.
+
+#### 4. Saving the Model
+After fine-tuning, save the fine-tuned model in the `fine_tuned_model` folder for subsequent tasks.
 
 **Training via `train_model.py` can take varying amounts of time depending on CPU and GPU usage.**
 
@@ -205,13 +183,12 @@ Detailed information about this process can be found in the `train_model.py` cod
 
 * * *
 
-
 ## 3.3 Web Application
 The web application is implemented using the Flask framework. Users can input text on the web page and click the submit button to receive real-time spelling corrections. This web application provides a user-friendly UI and is designed to perform spelling correction functions quickly and efficiently.
 
 #### Key Components of the Web Application:
 
-#### Flask Web Server:
+#### Flask Web Server
 Runs the Flask web server in the `app.py` file. (You need to download and run "requirements.txt.")
 After the server is running, you can check it via the [link](http://127.0.0.1:5000/).
 The server receives the text input from the user, performs spelling correction on the text using the model, and returns the corrected text.
@@ -219,12 +196,12 @@ The server manages communication between the client and the model to deliver res
 
 **Due to financial issues, I couldn't set up the server, but if it were, it would have been feasible.**
 
-#### UI Design:
+#### UI Design
 `index.html`: Provides an HTML page with a text input field and a section to display corrected results. Users input sentences in the text input field and click the "Check Spelling" button to send requests to the server.
 
 Although not visible in the photos above, dark mode also exists.
 
-#### Workflow:
+#### Workflow
 After the user inputs text on the web page and clicks the "Check Spelling" button, the entered text is sent to the Flask server.
 The server passes the transmitted text to the model to perform spelling correction.
 The corrected result is returned to the web page for the user to view.
@@ -243,6 +220,7 @@ The web application provides quick and intuitive correction results and can hand
 - **JSON**: For saving and loading datasets.
 
 * * *
+
 
 
 ## 5. Results and Improvements
@@ -291,7 +269,6 @@ This project successfully trained a Korean spelling correction model and impleme
 
 * * *
 
-
 ## 7. Reference
 - [Hugging Face KoGPT2](https://huggingface.co/skt/kogpt2-base-v2)
 - [ET5 Model](https://aiopen.etri.re.kr/et5Model)
@@ -337,6 +314,7 @@ This project successfully trained a Korean spelling correction model and impleme
 9. **datasets (Hugging Face Datasets Library)**:
    - **License**: [Apache 2.0 License](https://www.apache.org/licenses/LICENSE-2.0)
    - **Details**: The Datasets library is provided under the Apache 2.0 License, allowing commercial use, modifications, and redistribution.
+
 
 
 ## 9. Code Explanation
@@ -568,6 +546,7 @@ if __name__ == "__main__":
     choose_learning_method()
 
 
+
 ## train_model.py File View
 #### train_model.py
 ```python
@@ -684,6 +663,7 @@ tokenizer.save_pretrained("./fine_tuned_model")
 torch.save(model.state_dict(), './fine_tuned_model/pytorch_model.bin')
 
 print("Training complete and model saved.")
+
 
 
 ## app.py File View
@@ -819,6 +799,7 @@ if __name__ == '__main__':
     # Run the development server (debug mode)
     # For actual deployment, use a WSGI server (unfortunately, couldn't proceed due to cost issues)
     app.run(debug=True)
+
 
 
 ## index.html File View
@@ -1140,3 +1121,6 @@ In this section, we will explain the main structure and functionality of the `in
     </script>
 </body>
 </html>
+
+
+

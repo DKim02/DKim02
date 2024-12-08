@@ -135,6 +135,9 @@
 
 [index.html](#index.html)
 
+
+#### 복사과정에서 실수가 있을 수 있으니 이상한 경우 첨부된 코드를 참고해주세요.
+
 * * *
 
 ## 3.1 데이터셋 생성
@@ -193,7 +196,7 @@
 * * *
 
 ## 3.2 모델 훈련(및 파인튜닝)
-본 프로젝트에서는 ET5 모델을 사용하여 맞춤법 교정 모델을 훈련시킵니다. 하지만 시간과 컴퓨터 성능의 한계로 인해, ET5 모델을 처음부터 훈련시키기보다는 et5-typos-corrector 모델을 사용하여 훈련을 진행했습니다. 이 모델은 이미 맞춤법 교정에 특화된 데이터셋으로 파인튜닝된 상태로 제공되며, 모델을 불러와 random_sample.json 데이터셋을 사용하여 추가적인 파인튜닝을 수행했습니다.
+본 프로젝트에서는 ET5 모델을 사용하여 맞춤법 교정 모델을 훈련시킵니다. 하지만 시간과 컴퓨터 성능의 한계로 인해, ET5 모델을 처음부터 훈련시키기보다는 et5-typos-corrector 모델을 사용하여 훈련을 진행했습니다. 이 모델은 이미 맞춤법 교정에 특화된 데이터셋으로 파인튜닝된 상태로 제공되며, 모델을 불러와 random_sample.json 데이터셋을 사용하여 추가적인 파인튜닝을 수행했습니다.(et5-typos-corrector은 결국 국립국어원의 데이터셋을 학습 시킨 것으로 시간을 단축시키기 위해 사용하였습니다.)
 
 [et5-typos-corrector](https://huggingface.co/j5ng/et5-typos-corrector)
 해당 링크를 통해 자세한 설명을 보실 수 있습니다. (PLM모델인 ET5를 사용하여 국립국어원이 제공하는 데이터셋을 학습하였습니다.)
@@ -283,6 +286,7 @@ index.html: 사용자에게 텍스트 입력란과 교정 결과를 출력하는
 
 컴퓨터 공학과에서 처음으로 프로젝트같은 프로젝트를 했는데, 지금은 충분히 만족스럽다. (나중에 보면 다소 부끄러울 지 모르겠지만...)
 
+또한, 가능한 시간이 되는대로 개선을 하여 직접 서버에 배포하여 돌려보고싶다. (언젠가는 앱으로도...)
 
 * * *
 
@@ -575,7 +579,7 @@ index.html: 사용자에게 텍스트 입력란과 교정 결과를 출력하는
 	    choose_learning_method()
 	
 	
-	#### train_model.py
+#### train_model.py
 	import torch
 	from transformers import T5ForConditionalGeneration, T5Tokenizer
 	from transformers import Trainer, TrainingArguments
@@ -690,7 +694,7 @@ index.html: 사용자에게 텍스트 입력란과 교정 결과를 출력하는
 	print("훈련 완료 및 모델 저장 완료")
 	
 	
-	#### app.py
+#### app.py
 	from flask import Flask, render_template, request, jsonify
 	import torch
 	from transformers import T5ForConditionalGeneration, T5Tokenizer
@@ -820,7 +824,7 @@ index.html: 사용자에게 텍스트 입력란과 교정 결과를 출력하는
 	
 	
 	
-	#### index.html(메모장같은 다른 확장 프로그램으로 켜시면 보실 수 있습니다.)
+#### index.html(메모장같은 다른 확장 프로그램으로 켜시면 보실 수 있습니다.)
 	<!DOCTYPE html>
 	<html lang="ko">
 	<head>
